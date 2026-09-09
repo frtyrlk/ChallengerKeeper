@@ -299,7 +299,7 @@ const TEAMS = [
     fa("Aaron Wiggins","ATL","G,F")
   ]},
   { id: "bully", name: "Bully Bullets 24", color: "#4ade80", players: [
-    p("Shai Gilgeous-Alexander","OKC","G",92), p("Jalen Johnson","ATL","F",36), p("Derrick White","BOS","G",39),
+    p("Shai Gilgeous-Alexander","OKC","G",92), p("Jalen Johnson","ATL","F",36), tr("Stephen Curry","GSW","G",36),
     fa("Ivica Zubac","IND","C"), fa("Ryan Rollins","MIL","G"), p("Brandon Ingram","TOR","G,F",9),
     fa("Ty Jerome","MEM","G"), fa("Kristaps Porzingis","GSW","C"), fa("Peyton Watson","CLE","F"),
     p("Brook Lopez","LAC","C",1), fa("Ajay Mitchell","OKC","G"), fa("Jay Huff","IND","C"),
@@ -329,7 +329,7 @@ const TEAMS = [
     p("Cason Wallace","OKC","G,F",2), p("Aaron Gordon","DEN","F,C",2), fa("Tobias Harris","SAS","F")
   ]},
   { id: "doomed", name: "YOU'RE DOOMED!", color: "#e879f9", players: [
-    p("Luka Doncic","LAL","G",73), p("Scottie Barnes","TOR","F,C",32), p("Stephen Curry","GSW","G",36),
+    p("Luka Doncic","LAL","G",73), p("Scottie Barnes","TOR","F,C",32), tr("Derrick White","BOS","G",39),
     fa("Nickeil Alexander-Walker","ATL","G"), p("Payton Pritchard","BOS","G",11),
     fa("Mark Williams","PHX","C"), fa("Kevin Porter Jr.","MIL","G"), fa("Keegan Murray","SAC","F"),
     fa("Saddiq Bey","NOP","F"), fa("Quentin Grimes","LAL","G,F"), fa("Kyle Filipowski","UTA","F,C"),
@@ -410,7 +410,7 @@ const S = {
 
 (function load() {
   try {
-    const raw = localStorage.getItem("challenger-keeper-v3");
+    const raw = localStorage.getItem("challenger-keeper-v4");
     if (!raw) return;
     const d = JSON.parse(raw);
     if (d.rosters) S.rosters = d.rosters;
@@ -419,7 +419,7 @@ const S = {
 })();
 
 function save() {
-  localStorage.setItem("challenger-keeper-v3", JSON.stringify({ rosters: S.rosters, keepers: S.keepers }));
+  localStorage.setItem("challenger-keeper-v4", JSON.stringify({ rosters: S.rosters, keepers: S.keepers }));
 }
 
 function keepSet(tid) {
