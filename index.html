@@ -225,6 +225,30 @@
       font-size: 13px; font-weight: 600; margin-bottom: 14px; line-height: 1.45;
     }
     .tag.fa { color: var(--heat); }
+    .gm {
+      background: none; border: 0; padding: 0; cursor: pointer;
+      font-family: inherit; font-weight: 800; font-size: 13px;
+      color: var(--lime); margin-top: 4px;
+    }
+    #gate {
+      position: fixed; inset: 0; z-index: 10;
+      background: var(--bg);
+      padding: 28px 16px calc(24px + var(--safe-b));
+      overflow-y: auto;
+    }
+    .gate-in { max-width: 420px; margin: 0 auto; }
+    #gate h2 {
+      font-family: "Barlow Condensed", sans-serif; font-weight: 800; font-style: italic;
+      font-size: 36px; letter-spacing: .04em; text-transform: uppercase;
+    }
+    .glist { display: flex; flex-direction: column; gap: 8px; margin-top: 18px; }
+    .glist button {
+      font-family: inherit; font-weight: 800; font-size: 16px;
+      text-align: left; color: inherit; width: 100%;
+      background: var(--card); border: 1px solid var(--line);
+      border-radius: 12px; padding: 14px 16px; cursor: pointer;
+    }
+    .glist button:hover, .glist button.on { border-color: var(--lime); }
 
     @media (max-width: 760px) {
       .cols { grid-template-columns: 1fr; }
@@ -246,6 +270,7 @@
         <div>
           <h1>Challenger Keeper</h1>
           <p>2026–27 · Tavan $210 · Tutulanlar en fazla $206</p>
+          <button id="gm" class="gm" data-act="gate">Takımın</button>
         </div>
       </div>
       <div class="find">
@@ -262,6 +287,12 @@
     <button data-act="view" data-v="takas">Takas</button>
   </nav>
   <div class="toast" id="toast"></div>
+  <div id="gate" hidden>
+    <div class="gate-in">
+      <h2>Takımın</h2>
+      <div class="glist" id="glist"></div>
+    </div>
+  </div>
 
 <script>
 const YEAR1_CAP = 200;
@@ -431,7 +462,8 @@ const S = {
   tipI: 0,
   tipOn: false,
   keepers: {},
-  rosters: cloneTeams()
+  rosters: cloneTeams(),
+  gmId: null
 };
 
 (function load() {
@@ -441,11 +473,12 @@ const S = {
     const d = JSON.parse(raw);
     if (d.rosters) S.rosters = d.rosters;
     if (d.keepers) S.keepers = d.keepers;
+    if (d.gmId && TEAMS.some(t => t.id === d.gmId)) S.gmId = d.gmId;
   } catch (_) {}
 })();
 
 function save() {
-  localStorage.setItem("challenger-keeper-v4", JSON.stringify({ rosters: S.rosters, keepers: S.keepers }));
+  localStorage.setItem("challenger-keeper-v4", JSON.stringify({ rosters: S.rosters, keepers: S.keepers, gmId: S.gmId }));
 }
 
 function keepSet(tid) {
@@ -503,16 +536,35 @@ function drawHits() {
 function openFind(tid, pid) {
   const t = teamById(tid);
   const pl = t.players.find(x => x.id === pid);
-  if (S.tradeB === tid) S.tradeB = S.tradeA === tid ? S.rosters.find(x => x.id !== tid).id : S.tradeA;
   S.tradeA = tid;
-  if (S.tradeA === S.tradeB) S.tradeB = S.rosters.find(x => x.id !== tid).id;
   S.pickA = pl && hasSal(pl) ? new Set([pid]) : new Set();
   S.pickB.clear();
+  if (S.gmId && S.gmId !== tid) S.tradeB = S.gmId;
+  else if (S.tradeB === tid) S.tradeB = S.rosters.find(x => x.id !== tid).id;
   lockCore();
   S.view = "takas";
   document.getElementById("q").value = "";
   hideHits();
   if (pl && !hasSal(pl)) toast("Bu oyuncunun fiyatı henüz yok.");
+}
+
+function setGm(id) {
+  S.gmId = id;
+  S.teamId = id;
+  S.tradeB = id;
+  S.tradeA = S.rosters.find(x => x.id !== id).id;
+  S.pickA.clear(); S.pickB.clear();
+  lockCore();
+  save();
+  document.getElementById("gm").textContent = teamById(id).name;
+  document.getElementById("gate").hidden = true;
+}
+
+function showGate() {
+  document.getElementById("glist").innerHTML = S.rosters.map(t =>
+    `<button data-act="gm" data-id="${esc(t.id)}" class="${t.id===S.gmId?"on":""}">${esc(t.name)}</button>`
+  ).join("");
+  document.getElementById("gate").hidden = false;
 }
 
 function render() {
@@ -742,6 +794,8 @@ document.addEventListener("click", e => {
   }
   else if (act === "next-tip") nextTip();
   else if (act === "find") openFind(t.dataset.tid, t.dataset.pid);
+  else if (act === "gm") setGm(t.dataset.id);
+  else if (act === "gate") { showGate(); return; }
   else if (act === "reset") resetDraft();
   else return;
   render();
@@ -786,6 +840,12 @@ function selfCheck() {
   if (!(ok120 && no130 && r1 && r2 && cap && wembyKeep && faSkip && keepMax && addOnly)) throw new Error("keeper math failed");
 }
 selfCheck();
+if (S.gmId) {
+  S.teamId = S.gmId;
+  S.tradeB = S.gmId;
+  if (S.tradeA === S.gmId) S.tradeA = S.rosters.find(x => x.id !== S.gmId).id;
+  document.getElementById("gm").textContent = teamById(S.gmId).name;
+} else showGate();
 render();
 </script>
 </body>
