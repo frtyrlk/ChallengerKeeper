@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>ChallengerKeeper</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,700;0,800;1,800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #07090c;
+      --bg2: #0e1116;
+      --card: #14181f;
+      --card2: #1a2029;
+      --line: #2a3140;
+      --text: #f3f4f0;
+      --muted: #8d96a8;
+      --lime: #c8f542;
+      --lime-dim: rgba(200, 245, 66, .14);
+      --heat: #ff4d2e;
+      --heat-dim: rgba(255, 77, 46, .16);
+      --ice: #7dd3fc;
+      --ok: #3dff8a;
+      --radius: 16px;
+      --safe-b: env(safe-area-inset-bottom, 0px);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { min-height: 100%; }
+    body {
+      font-family: Manrope, system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.4;
+      padding-bottom: calc(76px + var(--safe-b));
+    }
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background:
+        radial-gradient(1200px 500px at 10% -10%, rgba(200, 245, 66, .08), transparent 50%),
+        radial-gradient(800px 400px at 100% 0%, rgba(255, 77, 46, .12), transparent 45%),
+        repeating-linear-gradient(-18deg, transparent 0 38px, rgba(255,255,255,.015) 38px 39px);
+      z-index: 0;
+    }
+    .wrap { position: relative; z-index: 1; max-width: 1120px; margin: 0 auto; padding: 20px 16px 8px; }
+    header.top {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      margin-bottom: 22px;
+    }
+    .brand { display: flex; align-items: center; gap: 10px; }
+    .mark {
+      width: 40px; height: 40px; border-radius: 12px;
+      background: var(--lime); color: #111;
+      display: grid; place-items: center;
+      font-family: "Barlow Condensed", sans-serif; font-weight: 800; font-size: 22px;
+    }
+    .brand h1 {
+      font-family: "Barlow Condensed", sans-serif;
+      font-weight: 800; font-style: italic; letter-spacing: .02em;
+      font-size: 28px; line-height: 1; text-transform: uppercase;
+    }
+    .brand p { color: var(--muted); font-size: 12px; font-weight: 600; margin-top: 2px; }
+    .chip {
+      font-size: 12px; font-weight: 700; color: var(--lime);
+      background: var(--lime-dim); border: 1px solid rgba(200,245,66,.25);
+      padding: 6px 10px; border-radius: 999px; white-space: nowrap;
+    }
+    .sub { color: var(--muted); font-size: 13px; margin: -12px 0 18px; }
+
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; }
+    .card {
+      background: linear-gradient(180deg, var(--card), #10141a);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 14px;
+      cursor: pointer;
+      text-align: left; color: inherit;
+      width: 100%;
+      transition: border-color .15s, transform .15s;
+    }
+    .card:hover { border-color: rgba(200,245,66,.45); transform: translateY(-1px); }
+    .card.on { border-color: var(--lime); box-shadow: 0 0 0 1px var(--lime) inset; }
+    .card .row { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+    .tname { font-weight: 800; font-size: 16px; }
+    .spent { font-variant-numeric: tabular-nums; color: var(--lime); font-weight: 800; }
+    .muted { color: var(--muted); font-size: 12px; font-weight: 600; }
+    .stars { margin-top: 10px; display: flex; flex-direction: column; gap: 4px; }
+    .stars span { font-size: 12px; color: #c5ccd8; display: flex; justify-content: space-between; }
+
+    .toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; align-items: center; }
+    select, .btn, .ghost {
+      font-family: inherit; font-weight: 700;
+      border-radius: 12px; border: 1px solid var(--line);
+      background: var(--card); color: var(--text);
+      padding: 10px 12px; font-size: 14px;
+    }
+    select { min-width: 220px; flex: 1; }
+    .btn {
+      background: var(--lime); color: #111; border: 0; cursor: pointer;
+    }
+    .btn:disabled { opacity: .4; cursor: not-allowed; }
+    .ghost { background: transparent; cursor: pointer; }
+    .ghost:hover { border-color: var(--muted); }
+
+    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 14px; }
+    .stat {
+      background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 12px;
+    }
+    .stat b {
+      display: block; font-family: "Barlow Condensed", sans-serif;
+      font-size: 28px; font-weight: 800; line-height: 1; margin-top: 4px;
+    }
+    .stat.ok b { color: var(--lime); }
+    .stat.bad b { color: var(--heat); }
+
+    .plist { display: flex; flex-direction: column; gap: 6px; }
+    .prow {
+      display: grid; grid-template-columns: 28px 1fr auto auto; gap: 8px; align-items: center;
+      background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+      padding: 10px 12px; cursor: pointer; text-align: left; color: inherit; width: 100%;
+    }
+    .prow.on { border-color: var(--lime); background: var(--lime-dim); }
+    .prow.dim { opacity: .38; }
+    .prow .nm { font-weight: 700; font-size: 14px; }
+    .ck {
+      width: 20px; height: 20px; border-radius: 6px; border: 2px solid var(--line);
+      display: grid; place-items: center; font-size: 12px; font-weight: 800;
+    }
+    .prow.on .ck { background: var(--lime); border-color: var(--lime); color: #111; }
+    .sal { font-variant-numeric: tabular-nums; font-weight: 800; color: var(--ice); }
+    .next { font-variant-numeric: tabular-nums; font-weight: 800; color: var(--lime); min-width: 64px; text-align: right; }
+    .tag { font-size: 10px; font-weight: 800; letter-spacing: .04em; color: var(--heat); }
+
+    .drop { margin-top: 16px; }
+    .drop h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-bottom: 8px; }
+
+    .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .side { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px; }
+    .side h2 { font-size: 15px; margin: 8px 0 10px; }
+    .verdict {
+      position: sticky; bottom: calc(72px + var(--safe-b));
+      margin-top: 14px; padding: 14px; border-radius: 16px;
+      border: 1px solid var(--line); background: #10151c;
+    }
+    .verdict.yes { border-color: rgba(61,255,138,.5); background: rgba(61,255,138,.08); }
+    .verdict.no { border-color: rgba(255,77,46,.5); background: var(--heat-dim); }
+    .verdict h3 {
+      font-family: "Barlow Condensed", sans-serif; font-size: 32px; font-style: italic;
+      letter-spacing: .04em;
+    }
+    .verdict.yes h3 { color: var(--ok); }
+    .verdict.no h3 { color: var(--heat); }
+    .bands { display: flex; justify-content: space-between; gap: 8px; margin: 8px 0 12px; font-size: 13px; font-weight: 700; }
+    .line { position: relative; height: 28px; margin: 8px 0 4px; }
+    .track { position: absolute; left: 0; right: 0; top: 12px; height: 4px; background: #2a3340; border-radius: 99px; }
+    .rng { position: absolute; top: 8px; height: 12px; border-radius: 99px; opacity: .9; }
+    .rng.a { background: var(--lime); }
+    .rng.b { background: var(--ice); }
+    .ov { position: absolute; top: 6px; height: 16px; background: #fff; mix-blend-mode: overlay; border-radius: 99px; }
+
+    nav.tabs {
+      position: fixed; left: 0; right: 0; bottom: 0; z-index: 5;
+      display: grid; grid-template-columns: 1fr 1fr 1fr;
+      background: #0b0d11; border-top: 1px solid var(--line);
+      padding: 8px 8px calc(8px + var(--safe-b));
+    }
+    nav.tabs button {
+      font-family: inherit; font-weight: 800; font-size: 13px;
+      background: transparent; color: var(--muted); border: 0;
+      padding: 10px; border-radius: 12px; cursor: pointer;
+    }
+    nav.tabs button.on { color: #111; background: var(--lime); }
+
+    .toast {
+      position: fixed; left: 50%; bottom: calc(86px + var(--safe-b));
+      transform: translateX(-50%); background: var(--lime); color: #111;
+      font-weight: 800; padding: 10px 14px; border-radius: 999px; z-index: 6;
+      display: none;
+    }
+    .hint { font-size: 12px; color: var(--muted); font-weight: 600; }
+
+    @media (max-width: 760px) {
+      .cols { grid-template-columns: 1fr; }
+      .stats { grid-template-columns: 1fr; }
+      .brand h1 { font-size: 22px; }
+      select { min-width: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="top">
+      <div class="brand">
+        <div class="mark">C</div>
+        <div>
+          <h1>ChallengerKeeper</h1>
+          <p>Sezon 2 · cap $210 · tam 9 tut</p>
+        </div>
+      </div>
+      <div class="chip">12 GM</div>
+    </header>
+    <div id="app"></div>
+  </div>
+  <nav class="tabs">
+    <button data-act="view" data-v="lig" class="on">Lig</button>
+    <button data-act="view" data-v="tut">Tutmalar</button>
+    <button data-act="view" data-v="takas">Takas</button>
+  </nav>
+  <div class="toast" id="toast"></div>
+
+<script>
+const YEAR1_CAP = 200;
+const KEEP_N = 9;
+const TEAMS = [
+  { id: "godbrother", name: "Godbrother", color: "#c8f542", unused: 0, players: [
+    p("Victor Wembanyama","SAS","F,C",91), p("LeBron James","LAL","F",25), p("Jaren Jackson Jr.","UTA","F,C",26),
+    p("Josh Giddey","CHI","G",32), p("Kristaps Porzingis","GSW","F,C",11), p("Jalen Suggs","ORL","G",1),
+    p("Herbert Jones","NOP","G,F",3), p("CJ McCollum","ATL","G",2), p("Norman Powell","MIA","G,F",3),
+    p("Donte DiVincenzo","MIN","G",1), p("Dereck Lively II","DAL","C",2), p("Jaden McDaniels","MIN","F",2), p("Jaden Ivey","CHI","G",1)
+  ]},
+  { id: "raul", name: "Raul Madrid", color: "#ff4d2e", unused: 0, players: [
+    p("Cade Cunningham","DET","G",54), p("Devin Booker","PHX","G",45), p("Jaylen Brown","BOS","G,F",27),
+    p("Walker Kessler","UTA","C",15), p("Jayson Tatum","BOS","F",29), p("Alex Sarr","WAS","C",6),
+    p("Tyler Herro","MIA","G",16), p("Josh Hart","NYK","G,F",3), p("Fred VanVleet","HOU","G",1),
+    p("Tyrese Haliburton","IND","G",1), p("Dejounte Murray","NOP","G",1), p("Kyrie Irving","DAL","G",1), p("Daniel Gafford","DAL","C",1)
+  ]},
+  { id: "mamba", name: "Mamba Academy", color: "#a78bfa", unused: 9, players: [
+    p("Ja Morant","MEM","G",12), p("Darius Garland","LAC","G",17), p("Zion Williamson","NOP","F,C",22),
+    p("Trae Young","WAS","G",46), p("LaMelo Ball","CHA","G",22), p("Kevin Durant","HOU","G,F",30),
+    p("Jimmy Butler III","GSW","G,F",10), p("Deandre Ayton","LAL","C",10), p("Brandon Miller","CHA","F",12),
+    p("Tari Eason","HOU","G,F",5), p("Santi Aldama","MEM","F,C",3), p("Brandin Podziemski","GSW","G",1), p("Yves Missi","NOP","C",1)
+  ]},
+  { id: "fedayn", name: "Fedayn", color: "#fb7185", unused: 3, players: [
+    p("Evan Mobley","CLE","F,C",44), p("Paul George","PHI","G,F",5), p("Donovan Mitchell","CLE","G",36),
+    p("Cameron Johnson","DEN","G,F",10), p("Julius Randle","MIN","F,C",12), p("Pascal Siakam","IND","F,C",30),
+    p("Matas Buzelis","CHI","F",11), p("Anfernee Simons","CHI","G",7), p("Jakob Poeltl","TOR","C",11),
+    p("Jarrett Allen","CLE","C",15), p("Devin Vassell","SAS","G,F",5), p("Andrew Wiggins","MIA","G,F",3), p("Rudy Gobert","MIN","C",8)
+  ]},
+  { id: "pawnee", name: "Pawnee Gulls", color: "#38bdf8", unused: 0, players: [
+    p("Anthony Edwards","MIN","G",62), p("Andrew Nembhard","IND","G",13), p("Trey Murphy III","NOP","G,F",21),
+    p("Paolo Banchero","ORL","F,C",29), p("Bam Adebayo","MIA","F,C",27), p("Coby White","CHA","G",12),
+    p("Cooper Flagg","DAL","G,F",20), p("Shaedon Sharpe","POR","G,F",3), p("Michael Porter Jr.","BKN","F",4),
+    p("Mitchell Robinson","NYK","C",2), p("Kel'el Ware","MIA","F,C",4), p("Bennedict Mathurin","LAC","G,F",2), p("Jrue Holiday","POR","G",1)
+  ]},
+  { id: "harakiri", name: "Harakiri", color: "#f97316", unused: 5, players: [
+    p("Joel Embiid","PHI","C",11), p("Desmond Bane","ORL","G,F",28), p("Zach LaVine","SAC","G,F",15),
+    p("Jalen Brunson","NYK","G",37), p("Lauri Markkanen","UTA","F",15), p("Myles Turner","MIL","C",18),
+    p("Jalen Green","PHX","G,F",5), p("Franz Wagner","ORL","F",21), p("Ivica Zubac","IND","C",18),
+    p("Immanuel Quickley","TOR","G",5), p("Miles Bridges","CHA","F",8), p("OG Anunoby","NYK","F",11), p("Cam Thomas","MIL","G,F",3)
+  ]},
+  { id: "mumessil", name: "Mümessil United", color: "#60a5fa", unused: 0, players: [
+    p("Domantas Sabonis","SAC","F,C",43), p("Amen Thompson","HOU","G,F",43), p("Chet Holmgren","OKC","F,C",40),
+    p("Jalen Williams","OKC","F",44), p("Austin Reaves","LAL","G,F",22), p("Adem Bona","PHI","C",1),
+    p("Jay Huff","IND","C",1), p("Cam Whitmore","WAS","F",1), p("Keon Ellis","CLE","G",1),
+    p("Yang Hansen","POR","C",1), p("Ace Bailey","UTA","G,F",1), p("Ryan Kalkbrenner","CHA","C",1), p("VJ Edgecombe","PHI","G",1)
+  ]},
+  { id: "bully", name: "Bully Bullets 24", color: "#4ade80", unused: 0, players: [
+    p("Shai Gilgeous-Alexander","OKC","G",92), p("Jalen Johnson","ATL","F",36), p("Derrick White","BOS","G",39),
+    p("Brandon Ingram","TOR","G,F",9), p("John Collins","LAC","F,C",9), p("Mark Williams","PHX","C",7),
+    p("Jonathan Kuminga","ATL","F",1), p("Bradley Beal","LAC","G,F",2), p("P.J. Washington","DAL","F,C",1),
+    p("Reed Sheppard","HOU","G",1), p("Jaylen Wells","MEM","G,F",1), p("Collin Sexton","CHI","G",1), p("Brook Lopez","LAC","C",1)
+  ]},
+  { id: "tacsiz", name: "Taçsız Kral", color: "#fbbf24", unused: 0, players: [
+    p("James Harden","CLE","G",37), p("Tyrese Maxey","PHI","G",48), p("Anthony Davis","WAS","F,C",49),
+    p("Karl-Anthony Towns","NYK","F,C",44), p("Deni Avdija","POR","G,F",14), p("Draymond Green","GSW","F,C",1),
+    p("Stephon Castle","SAS","G",1), p("Keegan Murray","SAC","F",1), p("Lonzo Ball","CLE","G",1),
+    p("Dylan Harper","SAS","G",1), p("Keyonte George","UTA","G",1), p("Klay Thompson","DAL","G,F",1), p("Nikola Jovic","MIA","F,C",1)
+  ]},
+  { id: "kayyim", name: "Kayyım", color: "#38bdf8", unused: 0, players: [
+    p("Giannis Antetokounmpo","MIL","F,C",71), p("De'Aaron Fox","SAC","G",28), p("Alperen Sengun","HOU","F,C",36),
+    p("Dyson Daniels","ATL","G,F",39), p("Ausar Thompson","DET","G,F",10), p("Isaiah Hartenstein","OKC","C",9),
+    p("Malik Monk","SAC","G",1), p("Nic Claxton","BKN","C",1), p("Kevin Porter Jr.","MIL","G",1),
+    p("Bobby Portis","MIL","F,C",1), p("RJ Barrett","TOR","G,F",1), p("Jonas Valanciunas","DEN","C",1), p("Dennis Schroder","CLE","G",1)
+  ]},
+  { id: "obi", name: "Obi-Wan Ginobili", color: "#facc15", unused: 8, players: [
+    p("Nikola Jokic","DEN","C",96), p("Jordan Poole","NOP","G",8), p("Jamal Murray","DEN","G",27),
+    p("Kawhi Leonard","LAC","F",13), p("Nikola Vucevic","BOS","C",14), p("Mikal Bridges","NYK","G,F",11),
+    p("Jalen Duren","DET","C",9), p("D'Angelo Russell","WAS","G",1), p("Onyeka Okongwu","ATL","F,C",6),
+    p("Jabari Smith Jr.","HOU","F,C",1), p("Zach Edey","MEM","C",2), p("Cason Wallace","OKC","G,F",2), p("Aaron Gordon","DEN","F,C",2)
+  ]},
+  { id: "doomed", name: "YOU'RE DOOMED!", color: "#e879f9", unused: 2, players: [
+    p("Luka Doncic","LAL","G",73), p("Scottie Barnes","TOR","G,F,C",32), p("Stephen Curry","GSW","G",36),
+    p("Payton Pritchard","BOS","G",11), p("Donovan Clingan","POR","C",11), p("DeMar DeRozan","SAC","F",13),
+    p("Christian Braun","DEN","G,F",9), p("Naz Reid","MIN","F,C",5), p("Toumani Camara","POR","F,C",4),
+    p("Obi Toppin","IND","F",1), p("Tobias Harris","DET","F",1), p("Aaron Nesmith","IND","G,F",1), p("Neemias Queta","BOS","F,C",1)
+  ]}
+];
+
+function p(name, nba, pos, salary) {
+  return { id: name, name, nba, pos, salary, viaTrade: false };
+}
+
+function cloneTeams() {
+  return TEAMS.map(t => ({ ...t, players: t.players.map(x => ({ ...x })) }));
+}
+
+function capForYear(year) {
+  let cap = YEAR1_CAP;
+  for (let i = 2; i <= year; i++) cap = Math.round(cap * 1.05);
+  return cap;
+}
+
+function nextSalary(pl) {
+  return pl.salary * (pl.viaTrade ? 1.05 : 1.08);
+}
+
+function roundTot(n) { return Math.round(n); }
+
+function money(n, d = 2) {
+  const s = d === 0 ? String(Math.round(n)) : Number(n).toFixed(d);
+  return "$" + s.replace(/\.00$/, "");
+}
+
+function band(total) {
+  return { lo: total * 0.9, hi: total * 1.1, tot: total };
+}
+
+function overlaps(a, b) {
+  return a.lo <= b.hi && b.lo <= a.hi;
+}
+
+function pkgTotal(players) {
+  return roundTot(players.reduce((s, x) => s + x.salary, 0));
+}
+
+function teamById(id) { return S.rosters.find(t => t.id === id); }
+
+function spent(t) { return t.players.reduce((s, x) => s + x.salary, 0); }
+
+const S = {
+  view: "lig",
+  teamId: TEAMS[0].id,
+  tradeA: TEAMS[0].id,
+  tradeB: TEAMS[1].id,
+  pickA: new Set(),
+  pickB: new Set(),
+  keepers: {},
+  rosters: cloneTeams()
+};
+
+(function load() {
+  try {
+    const raw = localStorage.getItem("challenger-keeper-v1");
+    if (!raw) return;
+    const d = JSON.parse(raw);
+    if (d.rosters) S.rosters = d.rosters;
+    if (d.keepers) S.keepers = d.keepers;
+  } catch (_) {}
+})();
+
+function save() {
+  localStorage.setItem("challenger-keeper-v1", JSON.stringify({ rosters: S.rosters, keepers: S.keepers }));
+}
+
+function keepSet(tid) {
+  if (!S.keepers[tid]) S.keepers[tid] = [];
+  return new Set(S.keepers[tid]);
+}
+
+function toggleKeep(tid, pid) {
+  const set = keepSet(tid);
+  if (set.has(pid)) set.delete(pid);
+  else {
+    if (set.size >= KEEP_N) return toast("Tam 9 tutacaksın — önce birini çıkar");
+    set.add(pid);
+  }
+  S.keepers[tid] = [...set];
+  save();
+}
+
+function toast(msg) {
+  const el = document.getElementById("toast");
+  el.textContent = msg;
+  el.style.display = "block";
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => { el.style.display = "none"; }, 2200);
+}
+
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[c]));
+}
+
+function render() {
+  document.querySelectorAll("nav.tabs button").forEach(b => b.classList.toggle("on", b.dataset.v === S.view));
+  const app = document.getElementById("app");
+  if (S.view === "lig") app.innerHTML = viewLig();
+  else if (S.view === "tut") app.innerHTML = viewTut();
+  else app.innerHTML = viewTakas();
+}
+
+function viewLig() {
+  const y2 = capForYear(2);
+  return `<p class="sub">Auction fiyatı = bu sezonki maaş. Tutulanlar ×1.08 (aynı takım) / ×1.05 (takasla gelen). Sezon 2 auction: ${money(y2,0)} − tutulan toplam.</p>
+    <div class="grid">${S.rosters.map(t => {
+      const top = [...t.players].sort((a,b) => b.salary - a.salary).slice(0,3);
+      const ks = keepSet(t.id).size;
+      return `<button class="card" data-act="open-tut" data-id="${t.id}">
+        <div class="row"><div class="tname">${esc(t.name)}</div><div class="spent">${money(spent(t),0)}</div></div>
+        <div class="muted">${t.players.length} oyuncu · unused ${money(t.unused,0)} · tutma ${ks}/${KEEP_N}</div>
+        <div class="stars">${top.map(x => `<span>${esc(x.name)}<b>${money(x.salary,0)}</b></span>`).join("")}</div>
+      </button>`;
+    }).join("")}</div>`;
+}
+
+function viewTut() {
+  const t = teamById(S.teamId);
+  const set = keepSet(t.id);
+  const kept = t.players.filter(x => set.has(x.id));
+  const raw = kept.reduce((s, x) => s + nextSalary(x), 0);
+  const tot = roundTot(raw);
+  const cap = capForYear(2);
+  const auction = cap - tot;
+  const full = set.size === KEEP_N;
+  const dropped = t.players.filter(x => !set.has(x.id));
+  return `
+    <div class="toolbar">
+      <select data-act="team">${S.rosters.map(x => `<option value="${x.id}" ${x.id===t.id?"selected":""}>${esc(x.name)}</option>`).join("")}</select>
+      <button class="ghost" data-act="reset">Draft’a sıfırla</button>
+    </div>
+    <div class="stats">
+      <div class="stat ${set.size===KEEP_N?"ok":"bad"}"><span class="muted">Tutulan</span><b>${set.size}/${KEEP_N}</b></div>
+      <div class="stat"><span class="muted">Yeni maaş toplamı</span><b>${money(tot,0)}</b><div class="hint">kuruşlu ${raw.toFixed(2)} → yuvarlak</div></div>
+      <div class="stat ${auction>=0?"ok":"bad"}"><span class="muted">Auction bütçesi</span><b>${money(auction,0)}</b><div class="hint">cap ${money(cap,0)}</div></div>
+    </div>
+    <div class="plist">${[...t.players].sort((a,b)=>b.salary-a.salary).map(x => {
+      const on = set.has(x.id);
+      const dim = !on && full;
+      const nxt = nextSalary(x);
+      return `<button class="prow ${on?"on":""} ${dim?"dim":""}" data-act="keep" data-id="${esc(x.id)}">
+        <div class="ck">${on?"✓":""}</div>
+        <div><div class="nm">${esc(x.name)} ${x.viaTrade ? '<span class="tag">TAKAS +%5</span>' : ""}</div>
+          <div class="muted">${x.nba} · ${x.pos}</div></div>
+        <div class="sal">${money(x.salary,0)}</div>
+        <div class="next">${money(nxt)}</div>
+      </button>`;
+    }).join("")}</div>
+    ${full ? `<div class="drop"><h3>Auction’a düşenler</h3>
+      <div class="muted">${dropped.slice().sort((a,b)=>b.salary-a.salary).map(x => esc(x.name) + " " + money(x.salary,0)).join(" · ")}</div></div>` : `<p class="sub" style="margin-top:14px">Soldaki bu sezonki maaş, sağdaki tutarsan sezon 2 maaşı.</p>`}`;
+}
+
+function viewTakas() {
+  const a = teamById(S.tradeA);
+  const b = teamById(S.tradeB);
+  const pa = a.players.filter(x => S.pickA.has(x.id));
+  const pb = b.players.filter(x => S.pickB.has(x.id));
+  const ta = pkgTotal(pa);
+  const tb = pkgTotal(pb);
+  const ba = band(ta), bb = band(tb);
+  const ok = pa.length && pb.length && overlaps(ba, bb);
+  const empty = !pa.length || !pb.length;
+  return `
+    <p class="sub">Paket toplamları önce toplanır, sonra yuvarlanır. ±%10 bantları kesişirse takas uygun.</p>
+    <div class="cols">
+      ${side(a, "A")}
+      ${side(b, "B")}
+    </div>
+    <div class="verdict ${empty ? "" : ok ? "yes" : "no"}">
+      <h3>${empty ? "OYUNCU SEÇ" : ok ? "KESİŞİYOR" : "KESİŞMİYOR"}</h3>
+      <div class="bands">
+        <span>${esc(a.name)} ${money(ta,0)} → [${fmtBand(ba.lo)} – ${fmtBand(ba.hi)}]</span>
+        <span>${esc(b.name)} ${money(tb,0)} → [${fmtBand(bb.lo)} – ${fmtBand(bb.hi)}]</span>
+      </div>
+      ${lineSvg(ba, bb)}
+      <button class="btn" data-act="apply" ${ok ? "" : "disabled"}>Takası uygula (bu tarayıcı)</button>
+    </div>`;
+}
+
+function side(team, which) {
+  const picks = which === "A" ? S.pickA : S.pickB;
+  const other = which === "A" ? S.tradeB : S.tradeA;
+  return `<div class="side">
+    <select data-act="trade-team" data-which="${which}">${S.rosters.map(x =>
+      `<option value="${x.id}" ${x.id===team.id?"selected":""} ${x.id===other?"disabled":""}>${esc(x.name)}</option>`
+    ).join("")}</select>
+    <h2>${esc(team.name)}</h2>
+    <div class="plist">${[...team.players].sort((a,b)=>b.salary-a.salary).map(x => {
+      const on = picks.has(x.id);
+      return `<button class="prow ${on?"on":""}" data-act="pick" data-which="${which}" data-id="${esc(x.id)}">
+        <div class="ck">${on?"✓":""}</div>
+        <div><div class="nm">${esc(x.name)}</div><div class="muted">${x.nba} · ${x.pos}</div></div>
+        <div class="sal">${money(x.salary,0)}</div>
+        <div></div>
+      </button>`;
+    }).join("")}</div>
+  </div>`;
+}
+
+function fmtBand(n) { return money(Math.round(n * 10) / 10, n % 1 ? 1 : 0); }
+
+function lineSvg(ba, bb) {
+  if (!ba.tot && !bb.tot) return "";
+  const lo = Math.min(ba.lo, bb.lo);
+  const hi = Math.max(ba.hi, bb.hi);
+  const span = hi - lo || 1;
+  const pct = x => ((x - lo) / span) * 100;
+  const ovLo = Math.max(ba.lo, bb.lo);
+  const ovHi = Math.min(ba.hi, bb.hi);
+  const hit = ovLo <= ovHi;
+  return `<div class="line">
+    <div class="track"></div>
+    <div class="rng a" style="left:${pct(ba.lo)}%;width:${pct(ba.hi)-pct(ba.lo)}%"></div>
+    <div class="rng b" style="left:${pct(bb.lo)}%;width:${pct(bb.hi)-pct(bb.lo)}%"></div>
+    ${hit ? `<div class="ov" style="left:${pct(ovLo)}%;width:${pct(ovHi)-pct(ovLo)}%"></div>` : ""}
+  </div>`;
+}
+
+function applyTrade() {
+  const a = teamById(S.tradeA);
+  const b = teamById(S.tradeB);
+  const pa = a.players.filter(x => S.pickA.has(x.id));
+  const pb = b.players.filter(x => S.pickB.has(x.id));
+  if (!pa.length || !pb.length || !overlaps(band(pkgTotal(pa)), band(pkgTotal(pb)))) return;
+  const move = (from, to, list) => {
+    list.forEach(pl => {
+      from.players = from.players.filter(x => x.id !== pl.id);
+      to.players.push({ ...pl, viaTrade: true });
+      S.keepers[from.id] = (S.keepers[from.id] || []).filter(id => id !== pl.id);
+    });
+  };
+  move(a, b, pa);
+  move(b, a, pb);
+  S.pickA.clear(); S.pickB.clear();
+  save();
+  toast("Takas uygulandı");
+}
+
+function resetDraft() {
+  S.rosters = cloneTeams();
+  S.keepers = {};
+  S.pickA.clear(); S.pickB.clear();
+  save();
+  toast("Draft kadroları yüklendi");
+}
+
+document.addEventListener("click", e => {
+  const t = e.target.closest("[data-act]");
+  if (!t) return;
+  const act = t.dataset.act;
+  if (act === "view") S.view = t.dataset.v;
+  else if (act === "open-tut") { S.teamId = t.dataset.id; S.view = "tut"; }
+  else if (act === "keep") toggleKeep(S.teamId, t.dataset.id);
+  else if (act === "pick") {
+    const set = t.dataset.which === "A" ? S.pickA : S.pickB;
+    if (set.has(t.dataset.id)) set.delete(t.dataset.id); else set.add(t.dataset.id);
+  }
+  else if (act === "apply") applyTrade();
+  else if (act === "reset") resetDraft();
+  else return;
+  render();
+});
+
+document.addEventListener("change", e => {
+  const t = e.target.closest("[data-act]");
+  if (!t) return;
+  if (t.dataset.act === "team") S.teamId = t.value;
+  else if (t.dataset.act === "trade-team") {
+    const which = t.dataset.which;
+    if (which === "A") { S.tradeA = t.value; S.pickA.clear(); }
+    else { S.tradeB = t.value; S.pickB.clear(); }
+  } else return;
+  render();
+});
+
+function selfCheck() {
+  const ok120 = overlaps(band(100), band(120));
+  const no130 = !overlaps(band(100), band(130));
+  const r1 = Math.round(18.4) === 18;
+  const r2 = Math.round(18.5) === 19;
+  const cap = capForYear(2) === 210 && capForYear(3) === 221;
+  const wembyKeep = roundTot(91 * 1.08) === 98;
+  if (!(ok120 && no130 && r1 && r2 && cap && wembyKeep)) throw new Error("keeper math failed");
+}
+selfCheck();
+render();
+</script>
+</body>
+</html>
