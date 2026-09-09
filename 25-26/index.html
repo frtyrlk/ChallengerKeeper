@@ -47,8 +47,8 @@
     }
     .wrap { position: relative; z-index: 1; max-width: 1120px; margin: 0 auto; padding: 20px 16px 8px; }
     header.top {
-      display: flex; align-items: center; justify-content: space-between; gap: 12px;
-      margin-bottom: 22px;
+      display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+      margin-bottom: 22px; flex-wrap: wrap;
     }
     .brand { display: flex; align-items: center; gap: 10px; }
     .mark {
@@ -64,11 +64,32 @@
       white-space: nowrap;
     }
     .brand p { color: var(--muted); font-size: 12px; font-weight: 600; margin-top: 2px; }
-    .chip {
-      font-size: 12px; font-weight: 700; color: var(--lime);
-      background: var(--lime-dim); border: 1px solid rgba(200,245,66,.25);
-      padding: 6px 10px; border-radius: 999px; white-space: nowrap;
+    .find { position: relative; flex: 1; max-width: 280px; min-width: 0; }
+    .find label {
+      display: block; font-size: 11px; font-weight: 800;
+      letter-spacing: .06em; text-transform: uppercase; color: var(--muted);
+      margin-bottom: 4px;
     }
+    .find input {
+      width: 100%; font-family: inherit; font-weight: 700;
+      border-radius: 12px; border: 1px solid var(--line);
+      background: var(--card); color: var(--text);
+      padding: 10px 12px; font-size: 14px;
+    }
+    .hits {
+      position: absolute; left: 0; right: 0; top: calc(100% + 4px);
+      background: var(--card); border: 1px solid var(--line);
+      border-radius: 12px; max-height: min(50vh, 360px); overflow-y: auto; z-index: 8;
+    }
+    .hits button {
+      display: flex; justify-content: space-between; align-items: baseline; gap: 8px;
+      width: 100%; text-align: left; font-family: inherit; color: inherit;
+      background: transparent; border: 0; border-bottom: 1px solid var(--line);
+      padding: 10px 12px; cursor: pointer; font-weight: 700; font-size: 14px;
+    }
+    .hits button:last-child { border-bottom: 0; }
+    .hits button:hover { background: var(--lime-dim); }
+    .hits .empty { padding: 10px 12px; }
     .sub { color: var(--muted); font-size: 13px; margin: -12px 0 18px; }
 
     .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; align-items: start; }
@@ -211,6 +232,7 @@
       .side .plist { max-height: 42vh; }
       .stats { grid-template-columns: 1fr; }
       .brand h1 { font-size: 20px; }
+      .find { flex: 1 1 160px; max-width: none; }
       .card { min-height: 0; }
       select { min-width: 0; }
     }
@@ -226,7 +248,11 @@
           <p>2026–27 · Tavan $210 · Tutulanlar en fazla $206</p>
         </div>
       </div>
-      <div class="chip">12 GM</div>
+      <div class="find">
+        <label for="q">Oyuncu Ara</label>
+        <input id="q" type="search" autocomplete="off" />
+        <div id="hits" class="hits" hidden></div>
+      </div>
     </header>
     <div id="app"></div>
   </div>
@@ -452,6 +478,43 @@ function esc(s) {
   return String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[c]));
 }
 
+function hideHits() {
+  const box = document.getElementById("hits");
+  box.hidden = true;
+  box.innerHTML = "";
+}
+
+function drawHits() {
+  const q = document.getElementById("q").value.trim().toLocaleLowerCase("tr");
+  const box = document.getElementById("hits");
+  if (q.length < 3) { hideHits(); return; }
+  const rows = [];
+  for (const t of S.rosters) for (const p of t.players)
+    if (p.name.toLocaleLowerCase("tr").includes(q)) rows.push({ t, p });
+  rows.sort((a, b) => (b.p.salary || 0) - (a.p.salary || 0));
+  box.hidden = false;
+  box.innerHTML = rows.length
+    ? rows.slice(0, 12).map(({ t, p }) =>
+      `<button data-act="find" data-tid="${esc(t.id)}" data-pid="${esc(p.id)}"><span>${esc(p.name)}</span><span class="muted">${esc(t.name)} · ${hasSal(p) ? money(p.salary, 0) : "FA"}</span></button>`
+    ).join("")
+    : `<div class="empty muted">Yok</div>`;
+}
+
+function openFind(tid, pid) {
+  const t = teamById(tid);
+  const pl = t.players.find(x => x.id === pid);
+  if (S.tradeB === tid) S.tradeB = S.tradeA === tid ? S.rosters.find(x => x.id !== tid).id : S.tradeA;
+  S.tradeA = tid;
+  if (S.tradeA === S.tradeB) S.tradeB = S.rosters.find(x => x.id !== tid).id;
+  S.pickA = pl && hasSal(pl) ? new Set([pid]) : new Set();
+  S.pickB.clear();
+  lockCore();
+  S.view = "takas";
+  document.getElementById("q").value = "";
+  hideHits();
+  if (pl && !hasSal(pl)) toast("Bu oyuncunun fiyatı henüz yok.");
+}
+
 function render() {
   document.querySelectorAll("nav.tabs button").forEach(b => b.classList.toggle("on", b.dataset.v === S.view));
   const app = document.getElementById("app");
@@ -662,6 +725,7 @@ function resetDraft() {
 }
 
 document.addEventListener("click", e => {
+  if (!e.target.closest(".find")) hideHits();
   const t = e.target.closest("[data-act]");
   if (!t) return;
   const act = t.dataset.act;
@@ -677,10 +741,17 @@ document.addEventListener("click", e => {
     lockCore();
   }
   else if (act === "next-tip") nextTip();
+  else if (act === "find") openFind(t.dataset.tid, t.dataset.pid);
   else if (act === "reset") resetDraft();
   else return;
   render();
+  if (act === "find" && t.dataset.pid) {
+    const el = document.querySelector(`[data-act="pick"][data-id="${CSS.escape(t.dataset.pid)}"]`);
+    el?.scrollIntoView({ block: "nearest" });
+  }
 });
+
+document.getElementById("q").addEventListener("input", drawHits);
 
 document.addEventListener("change", e => {
   const t = e.target.closest("[data-act]");
