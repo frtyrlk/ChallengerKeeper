@@ -56,6 +56,7 @@
       background: var(--lime); color: #111;
       display: grid; place-items: center;
       font-family: "Barlow Condensed", sans-serif; font-weight: 800; font-size: 22px;
+      border: 0; cursor: pointer;
     }
     .brand h1 {
       font-family: "Barlow Condensed", sans-serif;
@@ -182,6 +183,8 @@
     .verdict.yes h3 { color: var(--ok); }
     .verdict.no h3 { color: var(--heat); }
     .bands { display: flex; justify-content: space-between; gap: 8px; margin: 8px 0 12px; font-size: 13px; font-weight: 700; flex-wrap: wrap; }
+    .after { font-size: 13px; font-weight: 700; margin: 10px 0 4px; }
+    .after .hint { margin-top: 4px; }
     .tips { margin: 12px 0 12px; display: flex; flex-direction: column; gap: 8px; }
     .tips h4 { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
     .tips-row { display: flex; gap: 8px; align-items: stretch; }
@@ -266,7 +269,7 @@
   <div class="wrap">
     <header class="top">
       <div class="brand">
-        <div class="mark">C</div>
+        <button class="mark" data-act="view" data-v="lig" type="button">C</button>
         <div>
           <h1>Challenger Keeper</h1>
           <p>2026–27 · Tavan $210 · Tutulanlar en fazla $206</p>
@@ -631,6 +634,16 @@ function viewTut() {
       <div class="muted">${dropped.slice().sort(bySal).map(x => esc(x.name) + " " + (hasSal(x) ? money(x.salary,0) : "FA")).join(" · ")}</div></div>` : `<p class="sub" style="margin-top:14px">Soldaki bu sezonki maaş, sağdaki gelecek sezon. Fiyatı olmayan FA seçilemez.</p>`}`;
 }
 
+function afterSpent(team, give, take) {
+  const out = give.filter(hasSal).reduce((s, x) => s + x.salary, 0);
+  const inn = take.filter(hasSal).reduce((s, x) => s + x.salary, 0);
+  return spent(team) - out + inn;
+}
+
+function inKeep(take) {
+  return roundTot(take.filter(hasSal).reduce((s, x) => s + x.salary * 1.05, 0));
+}
+
 function viewTakas() {
   const a = teamById(S.tradeA);
   const b = teamById(S.tradeB);
@@ -644,6 +657,10 @@ function viewTakas() {
   const ca = a.players.filter(x => S.coreA.has(x.id));
   const cb = b.players.filter(x => S.coreB.has(x.id));
   const coreGap = ca.length && cb.length && !tradeOk(ca, cb);
+  const after = empty ? "" : `<div class="after">
+      Bu sezon ${esc(a.name)} ${money(spent(a),0)} → ${money(afterSpent(a, pa, pb),0)} · ${esc(b.name)} ${money(spent(b),0)} → ${money(afterSpent(b, pb, pa),0)}
+      <div class="hint">Gelenler tutulursa ${esc(a.name)} ${money(inKeep(pb),0)} · ${esc(b.name)} ${money(inKeep(pa),0)}</div>
+    </div>`;
   return `
     <p class="sub">Paket toplamları toplanır, sonra yuvarlanır. ±%10 bantları kesişirse takas uygun. Fiyatı olmayan FA toplamda yok.</p>
     <div class="alert">${FA_WARN}</div>
@@ -658,6 +675,7 @@ function viewTakas() {
         <span>${esc(b.name)} ${money(tb,0)} → [${fmtBand(bb.lo)} – ${fmtBand(bb.hi)}]</span>
       </div>
       ${lineSvg(ba, bb)}
+      ${after}
       ${coreGap ? tradeTipsHtml(a, ca, b, cb) : ""}
     </div>`;
 }
