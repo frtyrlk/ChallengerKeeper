@@ -130,7 +130,25 @@
     body.lig .stars { margin-top: 6px; gap: 2px; min-height: 0; overflow: hidden; }
     body.lig .stars span { font-size: 11px; line-height: 15px; min-height: 0; }
 
-    .toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; align-items: center; }
+    .board-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+    .board-bar input, .board-bar select { min-width: 0; flex: 1; }
+    .board-bar .sal-f { flex: 0 0 84px; }
+    .board-head, .brow {
+      display: grid; grid-template-columns: 1.4fr 1fr 72px; gap: 8px; align-items: center;
+    }
+    .board-head button {
+      font-family: inherit; font-weight: 800; font-size: 12px; text-align: left;
+      background: none; border: 0; color: var(--muted); cursor: pointer; padding: 8px 10px;
+    }
+    .board-head button.on { color: var(--lime); }
+    .board-head button:last-child, .brow .sal { text-align: right; }
+    .brow {
+      background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+      padding: 10px 12px; cursor: pointer; text-align: left; color: inherit; width: 100%;
+      font-family: inherit; font-weight: 700; font-size: 14px; margin-bottom: 6px;
+    }
+    .brow:hover { border-color: rgba(200,245,66,.45); }
+    .brow .tm { color: var(--muted); font-size: 13px; }
     select, .btn, .ghost {
       font-family: inherit; font-weight: 700;
       border-radius: 12px; border: 1px solid var(--line);
@@ -219,14 +237,14 @@
 
     nav.tabs {
       position: fixed; left: 0; right: 0; bottom: 0; z-index: 5;
-      display: grid; grid-template-columns: 1fr 1fr 1fr;
+      display: grid; grid-template-columns: 1fr 1fr 1fr 1fr;
       background: #0b0d11; border-top: 1px solid var(--line);
       padding: 8px 8px calc(8px + var(--safe-b));
     }
     nav.tabs button {
-      font-family: inherit; font-weight: 800; font-size: 13px;
+      font-family: inherit; font-weight: 800; font-size: 12px;
       background: transparent; color: var(--muted); border: 0;
-      padding: 10px; border-radius: 12px; cursor: pointer;
+      padding: 10px 4px; border-radius: 12px; cursor: pointer;
     }
     nav.tabs button.on { color: #111; background: var(--lime); }
 
@@ -309,6 +327,7 @@
     <button data-act="view" data-v="lig" class="on">Lig</button>
     <button data-act="view" data-v="tut">Keeper</button>
     <button data-act="view" data-v="takas">Takas</button>
+    <button data-act="view" data-v="oyuncu">Oyuncular</button>
   </nav>
   <div class="toast" id="toast"></div>
   <div id="gate" hidden>
@@ -489,7 +508,8 @@ const S = {
   tipOn: false,
   keepers: {},
   rosters: cloneTeams(),
-  gmId: null
+  gmId: null,
+  board: { q: "", team: "", min: "", max: "", sort: "sal", dir: -1 }
 };
 
 (function load() {
@@ -619,6 +639,7 @@ function render() {
   const app = document.getElementById("app");
   if (S.view === "lig") app.innerHTML = viewLig();
   else if (S.view === "tut") app.innerHTML = viewTut();
+  else if (S.view === "oyuncu") app.innerHTML = viewOyuncu();
   else app.innerHTML = viewTakas();
 }
 
@@ -634,6 +655,64 @@ function viewLig() {
         <div class="stars">${top.map(x => `<span>${esc(x.name)}<b>${money(x.salary,0)}</b></span>`).join("")}</div>
       </button>`;
     }).join("")}</div>`;
+}
+
+function boardArrow(k) {
+  if (S.board.sort !== k) return "";
+  return S.board.dir < 0 ? " ▼" : " ▲";
+}
+
+function boardRows() {
+  const q = S.board.q.trim().toLocaleLowerCase("tr");
+  const min = S.board.min === "" || Number.isNaN(Number(S.board.min)) ? null : Number(S.board.min);
+  const max = S.board.max === "" || Number.isNaN(Number(S.board.max)) ? null : Number(S.board.max);
+  const rows = [];
+  for (const t of S.rosters) for (const p of t.players) {
+    if (S.board.team && t.id !== S.board.team) continue;
+    if (q && !p.name.toLocaleLowerCase("tr").includes(q)) continue;
+    const sal = hasSal(p) ? p.salary : null;
+    if (min != null && !(sal != null && sal >= min)) continue;
+    if (max != null && !(sal != null && sal <= max)) continue;
+    rows.push({ t, p });
+  }
+  const dir = S.board.dir, k = S.board.sort;
+  rows.sort((a, b) => {
+    let c = 0;
+    if (k === "name") c = a.p.name.localeCompare(b.p.name, "tr");
+    else if (k === "team") c = a.t.name.localeCompare(b.t.name, "tr");
+    else c = (hasSal(a.p) ? a.p.salary : -1) - (hasSal(b.p) ? b.p.salary : -1);
+    return c * dir;
+  });
+  return rows.length
+    ? rows.map(({ t, p }) =>
+      `<button class="brow" data-act="find" data-tid="${esc(t.id)}" data-pid="${esc(p.id)}"><span>${esc(p.name)}</span><span class="tm">${esc(t.name)}</span><span class="sal">${hasSal(p) ? money(p.salary, 0) : "FA"}</span></button>`
+    ).join("")
+    : `<div class="empty muted">Yok</div>`;
+}
+
+function drawBoard() {
+  const box = document.getElementById("board-list");
+  if (box) box.innerHTML = boardRows();
+}
+
+function viewOyuncu() {
+  const b = S.board;
+  return `
+    <div class="board-bar">
+      <input data-act="board-q" value="${esc(b.q)}" placeholder="Oyuncu" />
+      <select data-act="board-team">
+        <option value="">Tümü</option>
+        ${S.rosters.map(x => `<option value="${x.id}" ${x.id===b.team?"selected":""}>${esc(x.name)}</option>`).join("")}
+      </select>
+      <input class="sal-f" data-act="board-min" inputmode="numeric" value="${esc(b.min)}" placeholder="Min" />
+      <input class="sal-f" data-act="board-max" inputmode="numeric" value="${esc(b.max)}" placeholder="Max" />
+    </div>
+    <div class="board-head">
+      <button data-act="board-sort" data-k="name" class="${b.sort==="name"?"on":""}">Oyuncu${boardArrow("name")}</button>
+      <button data-act="board-sort" data-k="team" class="${b.sort==="team"?"on":""}">Takım${boardArrow("team")}</button>
+      <button data-act="board-sort" data-k="sal" class="${b.sort==="sal"?"on":""}">Maaş${boardArrow("sal")}</button>
+    </div>
+    <div id="board-list">${boardRows()}</div>`;
 }
 
 function viewTut() {
@@ -852,6 +931,11 @@ document.addEventListener("click", e => {
   }
   else if (act === "next-tip") nextTip();
   else if (act === "find") openFind(t.dataset.tid, t.dataset.pid);
+  else if (act === "board-sort") {
+    const k = t.dataset.k;
+    if (S.board.sort === k) S.board.dir *= -1;
+    else { S.board.sort = k; S.board.dir = k === "sal" ? -1 : 1; }
+  }
   else if (act === "copy-trade") { const s = tradeLine(); if (s) copyText(s); return; }
   else if (act === "copy-keep") { const s = keepLine(); if (s) copyText(s); return; }
   else if (act === "gm") setGm(t.dataset.id);
@@ -867,10 +951,21 @@ document.addEventListener("click", e => {
 
 document.getElementById("q").addEventListener("input", drawHits);
 
+document.addEventListener("input", e => {
+  const t = e.target.closest("[data-act]");
+  if (!t) return;
+  if (t.dataset.act === "board-q") S.board.q = t.value;
+  else if (t.dataset.act === "board-min") S.board.min = t.value;
+  else if (t.dataset.act === "board-max") S.board.max = t.value;
+  else return;
+  drawBoard();
+});
+
 document.addEventListener("change", e => {
   const t = e.target.closest("[data-act]");
   if (!t) return;
   if (t.dataset.act === "team") S.teamId = t.value;
+  else if (t.dataset.act === "board-team") { S.board.team = t.value; drawBoard(); return; }
   else if (t.dataset.act === "trade-team") {
     const which = t.dataset.which;
     if (which === "A") { S.tradeA = t.value; S.pickA.clear(); S.coreA = new Set(); S.pickB = new Set(S.coreB); }
