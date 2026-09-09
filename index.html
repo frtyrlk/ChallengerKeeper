@@ -149,6 +149,12 @@
     }
     .brow:hover { border-color: rgba(200,245,66,.45); }
     .brow .tm { color: var(--muted); font-size: 13px; }
+    .board-tot {
+      display: grid; grid-template-columns: 1.3fr 1fr 64px 76px; gap: 8px; align-items: center;
+      padding: 10px 12px; margin: 8px 0 12px; font-weight: 800; font-size: 14px;
+      border-top: 1px solid var(--line);
+    }
+    .board-tot .next { text-align: right; color: var(--lime); }
     select, .btn, .ghost {
       font-family: inherit; font-weight: 700;
       border-radius: 12px; border: 1px solid var(--line);
@@ -662,7 +668,7 @@ function boardArrow(k) {
   return S.board.dir < 0 ? " ▼" : " ▲";
 }
 
-function boardRows() {
+function boardList() {
   const q = S.board.q.trim().toLocaleLowerCase("tr");
   const min = S.board.min === "" || Number.isNaN(Number(S.board.min)) ? null : Number(S.board.min);
   const max = S.board.max === "" || Number.isNaN(Number(S.board.max)) ? null : Number(S.board.max);
@@ -684,16 +690,24 @@ function boardRows() {
     else c = (nextSalary(a.p) || -1) - (nextSalary(b.p) || -1);
     return c * dir;
   });
-  return rows.length
+  return rows;
+}
+
+function boardHtml() {
+  const rows = boardList();
+  const list = rows.length
     ? rows.map(({ t, p }) =>
       `<button class="brow" data-act="find" data-tid="${esc(t.id)}" data-pid="${esc(p.id)}"><span>${esc(p.name)}</span><span class="tm">${esc(t.name)}</span><span class="sal">${hasSal(p) ? money(p.salary, 0) : "FA"}</span><span class="next">${(n => n ? money(n) : "—")(nextSalary(p))}</span></button>`
     ).join("")
     : `<div class="empty muted">Yok</div>`;
+  if (!S.board.team) return list;
+  const raw = rows.reduce((s, { p }) => s + nextSalary(p), 0);
+  return list + `<div class="board-tot"><span>Toplam</span><span></span><span></span><span class="next">${money(roundTot(raw), 0)}</span></div>`;
 }
 
 function drawBoard() {
   const box = document.getElementById("board-list");
-  if (box) box.innerHTML = boardRows();
+  if (box) box.innerHTML = boardHtml();
 }
 
 function viewOyuncu() {
@@ -714,7 +728,7 @@ function viewOyuncu() {
       <button data-act="board-sort" data-k="sal" class="${b.sort==="sal"?"on":""}">25/26${boardArrow("sal")}</button>
       <button data-act="board-sort" data-k="next" class="${b.sort==="next"?"on":""}">26/27${boardArrow("next")}</button>
     </div>
-    <div id="board-list">${boardRows()}</div>`;
+    <div id="board-list">${boardHtml()}</div>`;
 }
 
 function viewTut() {
