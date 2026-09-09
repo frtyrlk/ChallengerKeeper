@@ -84,7 +84,7 @@
     .hits button:last-child { border-bottom: 0; }
     .hits button:hover { background: var(--lime-dim); }
     .hits .empty { padding: 10px 12px; }
-    .sub { color: var(--muted); font-size: 13px; margin: -12px 0 18px; }
+    .sub { color: var(--muted); font-size: 13px; margin: 0 0 16px; line-height: 1.45; }
 
     .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; align-items: start; }
     .card {
@@ -160,7 +160,7 @@
 
     .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: stretch; }
     .side { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px; display: flex; flex-direction: column; min-height: 0; }
-    .side .plist { overflow-y: auto; max-height: min(52vh, 560px); padding-bottom: 4px; }
+    .side .plist { overflow-y: auto; max-height: min(58vh, 620px); padding-bottom: 4px; }
     .verdict {
       position: relative;
       z-index: 2;
@@ -216,11 +216,6 @@
       display: none;
     }
     .hint { font-size: 12px; color: var(--muted); font-weight: 600; }
-    .alert {
-      background: var(--heat-dim); border: 1px solid rgba(255,77,46,.4);
-      color: #ffc4b8; padding: 12px 14px; border-radius: 14px;
-      font-size: 13px; font-weight: 600; margin-bottom: 14px; line-height: 1.45;
-    }
     .tag.fa { color: var(--heat); }
     .gm {
       background: none; border: 0; padding: 0; cursor: pointer;
@@ -250,7 +245,7 @@
     @media (max-width: 760px) {
       .cols { grid-template-columns: 1fr; }
       .tips-row { flex-direction: column; }
-      .side .plist { max-height: 42vh; }
+      .side .plist { max-height: 48vh; }
       .stats { grid-template-columns: 1fr; }
       .brand .title { font-size: 20px; }
       .find { flex: 1 1 160px; max-width: none; }
@@ -294,7 +289,7 @@
 const YEAR1_CAP = 200;
 const KEEP_N = 9;
 const AUCTION_MIN = 4;
-const FA_WARN = "Free agent maaşları sezon sonunda Yahoo ortalama fiyatının %75’i olacak. Tutulamazlar; takasta $1.";
+const RULES = "Geçen sezonun açık artırmasında ödenen fiyat, oyuncunun bu sezonki maaşının baz noktasıdır. Aynı takımda tutulursa bu sezon ×1,08, sezon içi takasla gelip tutulursa ×1,05 ile çarpılır. 9 oyuncu tutmak zorunludur. Açık artırmada 4 oyuncu seçileceği için en az $4 ile bu sezonun draftına girilmelidir. Bu da aslında pratikte $206 bir cap demektir. Free agent’ların yeni sezon maaşı henüz belli değildir; drafttan önce Yahoo ortalama fiyatının %75’i yazılacaktır. Takas değerleri yeni sezon başlayana kadar $1'dır.";
 const TEAMS = [
   { id: "godbrother", name: "Kingodisco", color: "#c8f542", players: [
     p("Victor Wembanyama","SAS","C",91), p("Josh Giddey","CHI","G",32), tr("Donovan Clingan","POR","C",11),
@@ -593,8 +588,7 @@ function render() {
 }
 
 function viewLig() {
-  return `<div class="alert">${FA_WARN}</div>
-    <p class="sub">Bu sezonki maaş draft fiyatıdır. Aynı takımda tutulan ×1,08; takasla gelen ×1,05. 9 oyuncu tutulur. Açık artırmaya en az $4 kalmalı; tutulacakların toplamı en fazla ${money(keepCeiling(2),0)}.</p>
+  return `<p class="sub">${RULES}</p>
     <div class="grid">${S.rosters.map(t => {
       const top = [...t.players].filter(hasSal).sort(bySal).slice(0,6);
       const ks = keepSet(t.id).size;
@@ -618,7 +612,6 @@ function viewTut() {
   const full = set.size === KEEP_N;
   const dropped = t.players.filter(x => !set.has(x.id));
   return `
-    <div class="alert">${FA_WARN}</div>
     <div class="toolbar">
       <select data-act="team">${S.rosters.map(x => `<option value="${x.id}" ${x.id===t.id?"selected":""}>${esc(x.name)}</option>`).join("")}</select>
       <button class="ghost" data-act="reset">Sıfırla</button>
@@ -678,7 +671,6 @@ function viewTakas() {
     </div>`;
   return `
     <p class="sub">Paket toplamları toplanır, sonra yuvarlanır. ±%10 bantları kesişirse takas uygun. FA takasta $1.</p>
-    <div class="alert">${FA_WARN}</div>
     <div class="cols">
       ${side(a, "A")}
       ${side(b, "B")}
