@@ -184,6 +184,7 @@
     .verdict.no h3 { color: var(--heat); }
     .bands { display: flex; justify-content: space-between; gap: 8px; margin: 8px 0 12px; font-size: 13px; font-weight: 700; flex-wrap: wrap; }
     .after { font-size: 13px; font-weight: 700; margin: 10px 0 4px; }
+    .verdict > .ghost { margin-top: 10px; }
     .after .hint { margin-top: 4px; }
     .tips { margin: 12px 0 12px; display: flex; flex-direction: column; gap: 8px; }
     .tips h4 { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
@@ -301,7 +302,7 @@
 const YEAR1_CAP = 200;
 const KEEP_N = 9;
 const AUCTION_MIN = 4;
-const FA_WARN = "Free agent maaşları sezon sonunda Yahoo ortalama fiyatının %75’i olacak. O zamana kadar tutma ve takas toplamına girmezler.";
+const FA_WARN = "Free agent maaşları sezon sonunda Yahoo ortalama fiyatının %75’i olacak. Tutulamazlar; takasta $1.";
 const TEAMS = [
   { id: "godbrother", name: "Kingodisco", color: "#c8f542", players: [
     p("Victor Wembanyama","SAS","C",91), p("Josh Giddey","CHI","G",32), tr("Donovan Clingan","POR","C",11),
@@ -444,8 +445,10 @@ function overlaps(a, b) {
   return a.lo <= b.hi && b.lo <= a.hi;
 }
 
+function tradeSal(pl) { return pl.fa ? 1 : (pl.salary || 0); }
+
 function pkgTotal(players) {
-  return roundTot(players.filter(hasSal).reduce((s, x) => s + x.salary, 0));
+  return roundTot(players.reduce((s, x) => s + tradeSal(x), 0));
 }
 
 function teamById(id) { return S.rosters.find(t => t.id === id); }
@@ -502,7 +505,28 @@ function toggleKeep(tid, pid) {
   save();
 }
 
+function copyText(s) {
+  navigator.clipboard.writeText(s).then(() => toast("Kopyalandı")).catch(() => toast("Kopyalanamadı"));
+}
+
+function tradeLine() {
+  const a = teamById(S.tradeA), b = teamById(S.tradeB);
+  const pa = a.players.filter(x => S.pickA.has(x.id));
+  const pb = b.players.filter(x => S.pickB.has(x.id));
+  if (!pa.length || !pb.length) return "";
+  const names = list => list.map(x => x.name).join(" + ");
+  return `${names(pa)} ${money(pkgTotal(pa),0)} ↔ ${names(pb)} ${money(pkgTotal(pb),0)} · ${tradeOk(pa, pb) ? "Uygun" : "Uygun değil"}`;
+}
+
+function keepLine() {
+  const t = teamById(S.teamId);
+  const set = keepSet(t.id);
+  if (set.size !== KEEP_N) return "";
+  return t.players.filter(x => set.has(x.id)).sort(bySal).map(x => x.name).join("\n");
+}
+
 function toast(msg) {
+  const el = document.getElementById("toast");
   const el = document.getElementById("toast");
   el.textContent = msg;
   el.style.display = "block";
@@ -531,7 +555,7 @@ function drawHits() {
   box.hidden = false;
   box.innerHTML = rows.length
     ? rows.slice(0, 12).map(({ t, p }) =>
-      `<button data-act="find" data-tid="${esc(t.id)}" data-pid="${esc(p.id)}"><span>${esc(p.name)}</span><span class="muted">${esc(t.name)} · ${hasSal(p) ? money(p.salary, 0) : "FA"}</span></button>`
+      `<button data-act="find" data-tid="${esc(t.id)}" data-pid="${esc(p.id)}"><span>${esc(p.name)}</span><span class="muted">${esc(t.name)} · ${p.fa ? "FA · $1" : money(p.salary, 0)}</span></button>`
     ).join("")
     : `<div class="empty muted">Yok</div>`;
 }
@@ -540,7 +564,7 @@ function openFind(tid, pid) {
   const t = teamById(tid);
   const pl = t.players.find(x => x.id === pid);
   S.tradeA = tid;
-  S.pickA = pl && hasSal(pl) ? new Set([pid]) : new Set();
+  S.pickA = pl ? new Set([pid]) : new Set();
   S.pickB.clear();
   if (S.gmId && S.gmId !== tid) S.tradeB = S.gmId;
   else if (S.tradeB === tid) S.tradeB = S.rosters.find(x => x.id !== tid).id;
@@ -548,7 +572,6 @@ function openFind(tid, pid) {
   S.view = "takas";
   document.getElementById("q").value = "";
   hideHits();
-  if (pl && !hasSal(pl)) toast("Bu oyuncunun fiyatı henüz yok.");
 }
 
 function setGm(id) {
@@ -585,7 +608,7 @@ function viewLig() {
       const top = [...t.players].filter(hasSal).sort(bySal).slice(0,6);
       const ks = keepSet(t.id).size;
       const nfa = faN(t);
-      return `<button class="card" data-act="open-tut" data-id="${t.id}">
+      return `<button class="card ${t.id===S.gmId?"on":""}" data-act="open-tut" data-id="${t.id}">
         <div class="row"><div class="tname">${esc(t.name)}</div><div class="spent">${money(spent(t),0)}</div></div>
         <div class="muted">${t.players.length} oyuncu · ${nfa} FA · keeper ${ks}/${KEEP_N}</div>
         <div class="stars">${top.map(x => `<span>${esc(x.name)}<b>${money(x.salary,0)}</b></span>`).join("")}</div>
@@ -608,6 +631,7 @@ function viewTut() {
     <div class="toolbar">
       <select data-act="team">${S.rosters.map(x => `<option value="${x.id}" ${x.id===t.id?"selected":""}>${esc(x.name)}</option>`).join("")}</select>
       <button class="ghost" data-act="reset">Sıfırla</button>
+      ${full ? `<button class="ghost" data-act="copy-keep">Kopyala</button>` : ""}
     </div>
     <div class="stats">
       <div class="stat ${set.size===KEEP_N?"ok":"bad"}"><span class="muted">Tutulan</span><b>${set.size}/${KEEP_N}</b></div>
@@ -631,17 +655,17 @@ function viewTut() {
       </button>`;
     }).join("")}</div>
     ${full ? `<div class="drop"><h3>Tutulmayanlar</h3>
-      <div class="muted">${dropped.slice().sort(bySal).map(x => esc(x.name) + " " + (hasSal(x) ? money(x.salary,0) : "FA")).join(" · ")}</div></div>` : `<p class="sub" style="margin-top:14px">Soldaki bu sezonki maaş, sağdaki gelecek sezon. Fiyatı olmayan FA seçilemez.</p>`}`;
+      <div class="muted">${dropped.slice().sort(bySal).map(x => esc(x.name) + " " + (hasSal(x) ? money(x.salary,0) : "FA")).join(" · ")}</div></div>` : `<p class="sub" style="margin-top:14px">Soldaki bu sezonki maaş, sağdaki gelecek sezon. FA tutulamaz.</p>`}`;
 }
 
 function afterSpent(team, give, take) {
-  const out = give.filter(hasSal).reduce((s, x) => s + x.salary, 0);
-  const inn = take.filter(hasSal).reduce((s, x) => s + x.salary, 0);
-  return spent(team) - out + inn;
+  return spent(team)
+    - give.reduce((s, x) => s + (hasSal(x) ? x.salary : 0), 0)
+    + take.reduce((s, x) => s + tradeSal(x), 0);
 }
 
 function inKeep(take) {
-  return roundTot(take.filter(hasSal).reduce((s, x) => s + x.salary * 1.05, 0));
+  return roundTot(take.filter(x => hasSal(x) && !x.fa).reduce((s, x) => s + x.salary * 1.05, 0));
 }
 
 function viewTakas() {
@@ -662,7 +686,7 @@ function viewTakas() {
       <div class="hint">Gelenler tutulursa ${esc(a.name)} ${money(inKeep(pb),0)} · ${esc(b.name)} ${money(inKeep(pa),0)}</div>
     </div>`;
   return `
-    <p class="sub">Paket toplamları toplanır, sonra yuvarlanır. ±%10 bantları kesişirse takas uygun. Fiyatı olmayan FA toplamda yok.</p>
+    <p class="sub">Paket toplamları toplanır, sonra yuvarlanır. ±%10 bantları kesişirse takas uygun. FA takasta $1.</p>
     <div class="alert">${FA_WARN}</div>
     <div class="cols">
       ${side(a, "A")}
@@ -676,6 +700,7 @@ function viewTakas() {
       </div>
       ${lineSvg(ba, bb)}
       ${after}
+      ${!empty ? `<button class="ghost" data-act="copy-trade">Kopyala</button>` : ""}
       ${coreGap ? tradeTipsHtml(a, ca, b, cb) : ""}
     </div>`;
 }
@@ -689,10 +714,10 @@ function side(team, which) {
     ).join("")}</select>
     <div class="plist">${[...team.players].sort(bySal).map(x => {
       const on = picks.has(x.id);
-      return `<button class="prow ${on?"on":""} ${!hasSal(x)?"dim":""}" data-act="pick" data-which="${which}" data-id="${esc(x.id)}">
+      return `<button class="prow ${on?"on":""}" data-act="pick" data-which="${which}" data-id="${esc(x.id)}">
         <div class="ck">${on?"✓":""}</div>
-        <div><div class="nm">${esc(x.name)} ${x.fa ? (hasSal(x) ? '<span class="tag fa">FA · $1</span>' : '<span class="tag fa">FA · fiyat yok</span>') : ""}</div><div class="muted">${x.nba} · ${x.pos}</div></div>
-        <div class="sal">${hasSal(x) ? money(x.salary,0) : "—"}</div>
+        <div><div class="nm">${esc(x.name)} ${x.fa ? '<span class="tag fa">FA · $1</span>' : ""}</div><div class="muted">${x.nba} · ${x.pos}</div></div>
+        <div class="sal">${money(tradeSal(x),0)}</div>
         <div></div>
       </button>`;
     }).join("")}</div>
@@ -710,18 +735,18 @@ function tradeTipsList(a, pa, b, pb) {
   const seen = new Set();
   const idsA = new Set(pa.map(x => x.id));
   const idsB = new Set(pb.map(x => x.id));
-  const poolA = a.players.filter(x => hasSal(x) && !idsA.has(x.id));
-  const poolB = b.players.filter(x => hasSal(x) && !idsB.has(x.id));
+  const poolA = a.players.filter(x => !idsA.has(x.id));
+  const poolB = b.players.filter(x => !idsB.has(x.id));
   const add = (key, nAdd, label, extrasA, extrasB) => {
     const na = pa.concat(extrasA), nb = pb.concat(extrasB);
     if (seen.has(key) || !tradeOk(na, nb)) return;
     seen.add(key);
     tips.push({ nAdd, gap: Math.abs(pkgTotal(na) - pkgTotal(nb)), label: `${label} → ${money(pkgTotal(na),0)} / ${money(pkgTotal(nb),0)}`, addA: extrasA.map(p => p.id), addB: extrasB.map(p => p.id) });
   };
-  for (const p of poolB) add("b+" + p.id, 1, `${b.name}: ${p.name} ekle (${money(p.salary,0)})`, [], [p]);
-  for (const p of poolA) add("a+" + p.id, 1, `${a.name}: ${p.name} ekle (${money(p.salary,0)})`, [p], []);
+  for (const p of poolB) add("b+" + p.id, 1, `${b.name}: ${p.name} ekle (${money(tradeSal(p),0)})`, [], [p]);
+  for (const p of poolA) add("a+" + p.id, 1, `${a.name}: ${p.name} ekle (${money(tradeSal(p),0)})`, [p], []);
   for (const p of poolA) for (const q of poolB)
-    add("ab+" + p.id + q.id, 2, `${a.name}: ${p.name} ekle (${money(p.salary,0)}) · ${b.name}: ${q.name} ekle (${money(q.salary,0)})`, [p], [q]);
+    add("ab+" + p.id + q.id, 2, `${a.name}: ${p.name} ekle (${money(tradeSal(p),0)}) · ${b.name}: ${q.name} ekle (${money(tradeSal(q),0)})`, [p], [q]);
   // ponytail: 2-add O(n²) on ~13-player rosters; 3-add only if 1–2 never overlap
   for (let i = 0; i < poolB.length; i++) for (let j = i + 1; j < poolB.length; j++)
     add("bb+" + poolB[i].id + poolB[j].id, 2, `${b.name}: ${poolB[i].name} ve ${poolB[j].name} ekle`, [], [poolB[i], poolB[j]]);
@@ -803,15 +828,14 @@ document.addEventListener("click", e => {
   else if (act === "open-tut") { S.teamId = t.dataset.id; S.view = "tut"; }
   else if (act === "keep") toggleKeep(S.teamId, t.dataset.id);
   else if (act === "pick") {
-    const team = t.dataset.which === "A" ? teamById(S.tradeA) : teamById(S.tradeB);
-    const pl = team.players.find(x => x.id === t.dataset.id);
-    if (pl && !hasSal(pl)) { toast("Bu oyuncunun fiyatı henüz yok."); return; }
     const set = t.dataset.which === "A" ? S.pickA : S.pickB;
     if (set.has(t.dataset.id)) set.delete(t.dataset.id); else set.add(t.dataset.id);
     lockCore();
   }
   else if (act === "next-tip") nextTip();
   else if (act === "find") openFind(t.dataset.tid, t.dataset.pid);
+  else if (act === "copy-trade") { const s = tradeLine(); if (s) copyText(s); return; }
+  else if (act === "copy-keep") { const s = keepLine(); if (s) copyText(s); return; }
   else if (act === "gm") setGm(t.dataset.id);
   else if (act === "gate") { showGate(); return; }
   else if (act === "reset") resetDraft();
@@ -846,7 +870,8 @@ function selfCheck() {
   const r2 = Math.round(18.5) === 19;
   const cap = capForYear(2) === 210 && capForYear(3) === 221;
   const wembyKeep = roundTot(91 * 1.08) === 98;
-  const faSkip = pkgTotal([{ salary: 50, fa: false }, { salary: null, fa: true }]) === 50;
+  const faSkip = pkgTotal([{ salary: 50, fa: false }, { salary: null, fa: true }]) === 51;
+  const keepFa = nextSalary({ fa: true, salary: 1 }) === 0;
   const keepMax = keepCeiling(2) === 206;
   const tips = tradeTipsList(
     { name: "A", players: [{ id: "w", name: "Wemby", salary: 91 }, { id: "g", name: "Giddey", salary: 32 }] },
@@ -855,7 +880,7 @@ function selfCheck() {
     [{ id: "c", name: "Cade", salary: 54 }]
   );
   const addOnly = tips.length && tips.every(t => t.label.includes("ekle") && !t.label.includes("çıkar")) && tips.some(t => t.addB.includes("t"));
-  if (!(ok120 && no130 && r1 && r2 && cap && wembyKeep && faSkip && keepMax && addOnly)) throw new Error("keeper math failed");
+  if (!(ok120 && no130 && r1 && r2 && cap && wembyKeep && faSkip && keepFa && keepMax && addOnly)) throw new Error("keeper math failed");
 }
 selfCheck();
 if (S.gmId) {
