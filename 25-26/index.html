@@ -50,19 +50,12 @@
       display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
       margin-bottom: 22px; flex-wrap: wrap;
     }
-    .brand { display: flex; align-items: center; gap: 10px; }
-    .mark {
-      width: 40px; height: 40px; border-radius: 12px;
-      background: var(--lime); color: #111;
-      display: grid; place-items: center;
-      font-family: "Barlow Condensed", sans-serif; font-weight: 800; font-size: 22px;
-      border: 0; cursor: pointer;
-    }
-    .brand h1 {
+    .brand .title {
       font-family: "Barlow Condensed", sans-serif;
       font-weight: 800; font-style: italic; letter-spacing: .04em;
       font-size: 28px; line-height: 1; text-transform: uppercase;
       white-space: nowrap;
+      background: none; border: 0; color: inherit; cursor: pointer; padding: 0;
     }
     .brand p { color: var(--muted); font-size: 12px; font-weight: 600; margin-top: 2px; }
     .find { position: relative; flex: 1; max-width: 280px; min-width: 0; }
@@ -259,7 +252,7 @@
       .tips-row { flex-direction: column; }
       .side .plist { max-height: 42vh; }
       .stats { grid-template-columns: 1fr; }
-      .brand h1 { font-size: 20px; }
+      .brand .title { font-size: 20px; }
       .find { flex: 1 1 160px; max-width: none; }
       .card { min-height: 0; }
       select { min-width: 0; }
@@ -270,9 +263,8 @@
   <div class="wrap">
     <header class="top">
       <div class="brand">
-        <button class="mark" data-act="view" data-v="lig" type="button">C</button>
         <div>
-          <h1>Challenger Keeper</h1>
+          <button class="title" data-act="view" data-v="lig" type="button">Challenger Fantasy</button>
           <p>2026–27 · Tavan $210 · Tutulanlar en fazla $206</p>
           <button id="gm" class="gm" data-act="gate">Takımın</button>
         </div>
