@@ -311,6 +311,7 @@
     .fa-v { font-family: "Barlow Condensed", sans-serif; font-weight: 800; font-style: italic; font-size: 28px; margin-top: 4px; }
     .fa-v.lime { color: var(--lime); }
     .explain { white-space: pre-wrap; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px; font-size: 13px; font-weight: 600; line-height: 1.5; }
+    .explain b { font-weight: 800; color: var(--text); }
     .warn { background: var(--heat-dim); border: 1px solid rgba(255,77,46,.4); color: #ffc4b8; padding: 12px 14px; border-radius: 14px; font-size: 13px; font-weight: 600; }
 
     @media (max-width: 980px) {
@@ -360,7 +361,7 @@
         <button data-act="view" data-v="lig" class="on">Lig</button>
         <button data-act="view" data-v="tut">Keeper</button>
         <button data-act="view" data-v="takas">Takas</button>
-        <button data-act="view" data-v="fa">FA $</button>
+        <button data-act="view" data-v="fa">FA Maaşı</button>
         <button data-act="view" data-v="oyuncu">Oyuncular</button>
   </nav>
   <div class="toast" id="toast"></div>
@@ -375,7 +376,7 @@
 const YEAR1_CAP = 200;
 const KEEP_N = 9;
 const AUCTION_MIN = 4;
-const RULES = "Geçen sezonun açık artırmasında ödenen fiyat, oyuncunun bu sezonki maaşının baz noktasıdır. Aynı takımda tutulursa bu sezon ×1,08, sezon içi takasla gelip tutulursa ×1,05 ile çarpılır. 9 oyuncu tutmak zorunludur. Açık artırmada 4 oyuncu seçileceği için en az $4 ile bu sezonun draftına girilmelidir. Bu da aslında pratikte $206 bir cap demektir. FA maaşı, 65 maç projeksiyonundaki auction değerinin %30’u (taban $1, tavan $15); FA $ sekmesinden hesaplanır. Takas değerleri yeni sezon başlayana kadar $1'dır.";
+const RULES = "Geçen sezonun açık artırmasında ödenen fiyat, oyuncunun bu sezonki maaşının baz noktasıdır. Aynı takımda tutulursa bu sezon ×1,08, sezon içi takasla gelip tutulursa ×1,05 ile çarpılır. 9 oyuncu tutmak zorunludur. Açık artırmada 4 oyuncu seçileceği için en az $4 ile bu sezonun draftına girilmelidir. Bu da aslında pratikte $206 bir cap demektir. Geçen sezon FA’dan alınan oyuncu o yıl $1’dı; yeni sezona $1,08 ile girmiyor. Performansı NBA ödül baremi olan 65 maça çekilir, ligdeki sırası bulunur, o sıraya açık artırma fiyatı biçilir. FA maaşı bu fiyatın tamamı değil: $1’ın üstünün yüzde 30’u, en fazla $15. Kuruşlar yuvarlanmaz. Takas değerleri yeni sezon başlayana kadar $1'dır.";
 const TEAMS = [
   { id: "godbrother", name: "Kingodisco", color: "#c8f542", players: [
     p("Victor Wembanyama","SAS","C",91), p("Josh Giddey","CHI","G",32), tr("Donovan Clingan","POR","C",11),
@@ -806,9 +807,7 @@ function projectPlayer(id, targetGP) {
     },
     economics: {
       auctionMarketValue: mv,
-      auctionMarketValueRounded: Math.round(mv),
       faSalary: fa,
-      faSalaryRounded: Math.round(fa),
       faSalaryCap: VE.MAX_FA,
       marketSurplusIfFA: mv - fa,
       replacementTotal: econ.replacementTotal
@@ -818,16 +817,40 @@ function projectPlayer(id, targetGP) {
   };
 }
 
+function usd2(n) { return "$" + Number(n).toFixed(2); }
+
+function rosterFaNames() {
+  const s = new Set();
+  for (const t of S.rosters) for (const p of t.players) if (p.fa) s.add(p.name.toLocaleLowerCase("tr"));
+  return s;
+}
+
 function veExplain(res) {
   const o = res.original, p = res.projection, e = res.economics;
-  return `${res.player} ${o.games} maçta ${o.total.toFixed(2)} TOTAL ile ${o.rank}. sırada.\n\n`
-    + `${p.games} maç projeksiyonunda mevcut maç-başı performansının değişmediği varsayıldı.\n\n`
-    + `Ham counting istatistikleri ${p.games}/${o.games} = ${p.scaleFactor.toFixed(4)} katsayısıyla ölçeklendi.\n\n`
-    + `FG% ve FT% doğrudan çarpılmadı; şut hacmi dikkate alınarak weighted percentage impact yeniden hesaplandı.\n\n`
-    + `Ardından her kategori kalibre edilmiş z-score benzeri değer fonksiyonundan geçirildi ve H2H negatif kategori floor'u uygulandı.\n\n`
-    + `Son projected TOTAL yaklaşık ${p.total.toFixed(2)} oldu. Bu değer mevcut oyuncu havuzuna yerleştirildiğinde yaklaşık ${p.rank}. sıraya karşılık geliyor.\n\n`
-    + `Auction market value ≈ $${e.auctionMarketValue.toFixed(2)} ($${e.auctionMarketValueRounded}). `
-    + `FA maaşı = min(15, 1 + 0.30×(MV−1)) ≈ $${e.faSalary.toFixed(2)} ($${e.faSalaryRounded}).`;
+  const gp = o.games;
+  const tgt = p.games;
+  const scale = p.scaleFactor.toFixed(3).replace(".", ",");
+  const vol = p.scaleFactor < 1 ? "daha düşük şut hacmi" : p.scaleFactor > 1 ? "daha yüksek şut hacmi" : "aynı şut hacmi";
+  const tot0 = o.total.toFixed(2);
+  const tot1 = p.total.toFixed(2);
+  const mv = e.auctionMarketValue.toFixed(2);
+  const rawFa = 1 + 0.30 * Math.max(0, e.auctionMarketValue - 1);
+  const fa = e.faSalary.toFixed(2);
+  const capNote = rawFa > VE.MAX_FA
+    ? `\n\nHam formül ${usd2(rawFa)} verse de FA maaşı hiçbir koşulda $15’i geçemez; yazılan tutar $15.00’tir.`
+    : "";
+  return `${esc(res.player)}, 2025/26 sezonunda ${gp} maç oynadı ve HashtagBasketball Total sıralamasında <b>${tot0} TOTAL ile ${o.rank}. sırada</b> yer aldı.\n\n`
+    + `Maaş hesaplamasında standart olarak NBA’in ödül baremi olan <b>${tgt} maç</b> esas alınır. Bu nedenle önce oyuncunun mevcut üretimi ${tgt} maça normalize edilir:\n\n`
+    + `<b>${tgt} ÷ ${gp} = ${scale}</b>\n\n`
+    + `Mevcut maç-başı performansının değişmediği varsayılarak sayı, ribaund, asist, top çalma, blok ve diğer hacim bazlı istatistikler bu katsayıyla ${tgt} maça çekilir. Şut yüzdeleri doğrudan ${scale} ile çarpılmaz; aynı isabet oranı korunur, ancak ${vol} üzerinden yeniden ağırlıklandırılır.\n\n`
+    + `Burada mevcut <b>${tot0} TOTAL değeri doğrudan ${scale} ile çarpılmaz</b>. TOTAL, kategorilerin birleşik değerinden oluştuğu için her kategori ${tgt} maçlık yeni hacim üzerinden yeniden hesaplanır. Bu işlem sonunda ${esc(res.player)}’ın <b>Projected TOTAL değeri ${tot1}</b> olur.\n\n`
+    + `${tot1} değeri, veri setindeki diğer oyuncuların mevcut TOTAL değerleri arasına yeniden yerleştirildiğinde ${esc(res.player)} <b>${p.rank}. sıraya</b> karşılık gelir.\n\n`
+    + `12 takımlı, takım başına 13 oyunculu ve takım başına <b>$210 salary cap</b> kullanılan açık artırma ekonomisinde ${p.rank}. sıranın hesaplanan piyasa değeri yaklaşık <b>${usd2(mv)}</b> olur.\n\n`
+    + `FA kontratı bu piyasa değerinin tamamı üzerinden verilmez. Taban maaş <b>$1</b> olarak alınır; $1 üzerindeki piyasa değerinin <b>%30’u</b> maaşa eklenir ve FA maaşı hiçbir koşulda <b>$15’i geçemez</b>.\n\n`
+    + `Hesaplama:\n\n`
+    + `<b>$1 + 0,30 × (${usd2(mv)} − $1) = ${usd2(rawFa > VE.MAX_FA ? rawFa : fa)}</b>${capNote}\n\n`
+    + `Bu tutar ayrıca tam dolara yuvarlanmaz; hesaplanan değer olduğu gibi korunur.\n\n`
+    + `<b>Sonuç:</b> 2025/26 sezonunda ${gp} maçta ${o.rank}. sırada olan ${esc(res.player)}, ${tgt} maç standardına göre <b>${tot1} TOTAL / ${p.rank}. sıra / ${usd2(mv)} piyasa değeri / ${usd2(fa)} FA maaşı</b> ile değerlendirilir.`;
 }
 
 function veCheck() {
@@ -836,7 +859,7 @@ function veCheck() {
   if (faSalary(80) !== 15) throw new Error("fa cap");
   const n = projectPlayer("nickeil-alexander-walker", 65);
   if (Math.abs(n.projection.total - 17.97) > 0.15 || Math.abs(n.projection.rank - 34) > 2) throw new Error("nickeil");
-  if (n.economics.faSalaryRounded !== 8) throw new Error("nickeil fa");
+  if (Math.abs(n.economics.faSalary - 8.06) > 0.05) throw new Error("nickeil fa");
 }
 
 async function loadEngine() {
@@ -857,13 +880,20 @@ async function loadEngine() {
 }
 
 function faHits() {
+  const names = rosterFaNames();
   const q = S.fa.q.trim().toLocaleLowerCase("tr");
   if (q.length < 2) return [];
-  return VE.players.filter(p => p.name.toLocaleLowerCase("tr").includes(q)).slice(0, 12);
+  return VE.players.filter(p => names.has(p.name.toLocaleLowerCase("tr")) && p.name.toLocaleLowerCase("tr").includes(q)).slice(0, 12);
 }
 
 function runFa(id) {
   const gp = Number(S.fa.gp) || 65;
+  const pl = veFind(id);
+  if (!pl || !rosterFaNames().has(pl.name.toLocaleLowerCase("tr"))) {
+    S.fa.result = null;
+    S.fa.err = "Yalnızca kadrodaki FA oyuncuları hesaplanır.";
+    return;
+  }
   try {
     S.fa.pick = id;
     S.fa.result = projectPlayer(id, gp);
@@ -875,35 +905,31 @@ function runFa(id) {
 }
 
 function viewFa() {
-  if (S.fa.loading) return `<p class="sub">65 maç projeksiyonu ve FA maaşı yükleniyor…</p>`;
+  if (S.fa.loading) return `<p class="sub">FA maaşı yükleniyor…</p>`;
   if (S.fa.err && !VE.cal) return `<p class="sub">${esc(S.fa.err)}</p>`;
   const hits = faHits();
   const r = S.fa.result;
-  const rosterFa = new Set();
-  for (const t of S.rosters) for (const p of t.players) if (p.fa) rosterFa.add(p.name.toLowerCase());
   const warn = VE.cal && VE.cal.mae >= 0.01
     ? `<div class="warn">Kalibrasyon MAE ${VE.cal.mae.toFixed(4)} — hedef &lt; 0.01. Sonuca ihtiyatlı bak.</div>`
     : "";
-  const pick = r ? VE.players.find(p => p.id === r.playerId) : null;
-  const isFa = pick && rosterFa.has(pick.name.toLowerCase());
-  return `<p class="sub">FA maaşı: 65 maça ölçeklenmiş TOTAL → $210 auction değeri → %30 iskonto, tavan $15. TOTAL doğrudan maç oranıyla çarpılmaz.</p>
+  return `<p class="sub">Geçen sezon FA’dan alınan oyuncu o yıl $1’dı; yeni sezona $1,08 ile girmiyor. Performansı NBA ödül baremi olan 65 maça çekilir, ligdeki sırası bulunur, o sıraya açık artırma fiyatı biçilir. FA maaşı bu fiyatın tamamı değil: $1’ın üstünün yüzde 30’u, en fazla $15. Kuruşlar yuvarlanmaz.</p>
     <div class="fa-box">
       ${warn}
+      ${S.fa.err && VE.cal ? `<div class="warn">${esc(S.fa.err)}</div>` : ""}
       <div class="fa-row">
-        <div><label for="fa-q">Oyuncu</label><input id="fa-q" data-act="fa-q" type="search" autocomplete="off" value="${esc(S.fa.q)}" placeholder="Dejounte Murray" /></div>
+        <div><label for="fa-q">FA oyuncu</label><input id="fa-q" data-act="fa-q" type="search" autocomplete="off" value="${esc(S.fa.q)}" placeholder="Nickeil Alexander-Walker" /></div>
         <div><label for="fa-gp">Maç</label><input id="fa-gp" data-act="fa-gp" type="number" min="1" max="82" value="${esc(S.fa.gp)}" /></div>
       </div>
-      ${`<div id="fa-hits">${hits.length ? `<div class="fa-hits">${hits.map(p =>
-        `<button data-act="fa-pick" data-id="${esc(p.id)}" class="${S.fa.pick===p.id?"on":""}"><span>${esc(p.name)}${rosterFa.has(p.name.toLowerCase()) ? ' <span class="tag fa">FA</span>' : ""}</span><span class="muted">${p.gp} GP · ${p.rank}. · ${p.total.toFixed(2)}</span></button>`
-      ).join("")}</div>` : (S.fa.q.trim().length >= 2 ? `<p class="muted">Yok</p>` : "")}</div>`}
+      <div id="fa-hits">${hits.length ? `<div class="fa-hits">${hits.map(p =>
+        `<button data-act="fa-pick" data-id="${esc(p.id)}" class="${S.fa.pick===p.id?"on":""}"><span>${esc(p.name)}</span><span class="muted">${p.gp} GP · ${p.rank}. · ${p.total.toFixed(2)}</span></button>`
+      ).join("")}</div>` : (S.fa.q.trim().length >= 2 ? `<p class="muted">Kadroda bu isimde FA yok</p>` : "")}</div>
       ${r ? `<div class="fa-metrics">
         <div class="card"><div class="fa-k">TOTAL</div><div class="fa-v">${r.original.total.toFixed(2)} → ${r.projection.total.toFixed(2)}</div></div>
         <div class="card"><div class="fa-k">Sıra</div><div class="fa-v">${r.original.rank} → ${r.projection.rank}</div></div>
-        <div class="card"><div class="fa-k">Auction</div><div class="fa-v">$${r.economics.auctionMarketValueRounded}</div></div>
-        <div class="card"><div class="fa-k">FA maaş</div><div class="fa-v lime">$${r.economics.faSalaryRounded}</div></div>
+        <div class="card"><div class="fa-k">Piyasa</div><div class="fa-v">${usd2(r.economics.auctionMarketValue)}</div></div>
+        <div class="card"><div class="fa-k">FA maaşı</div><div class="fa-v lime">${usd2(r.economics.faSalary)}</div></div>
       </div>
-      <p class="muted">${esc(r.player)}${isFa ? " · kadroda FA" : ""} · ${r.projection.games} maç · scale ${r.projection.scaleFactor.toFixed(4)} · ham MV $${r.economics.auctionMarketValue.toFixed(2)} · surplus $${r.economics.marketSurplusIfFA.toFixed(2)}</p>
-      <div class="explain">${esc(veExplain(r))}</div>` : ""}
+      <div class="explain">${veExplain(r)}</div>` : ""}
     </div>`;
 }
 
@@ -1252,12 +1278,10 @@ document.addEventListener("input", e => {
     S.fa.q = t.value;
     const box = document.getElementById("fa-hits");
     if (box) {
-      const rosterFa = new Set();
-      for (const tm of S.rosters) for (const p of tm.players) if (p.fa) rosterFa.add(p.name.toLowerCase());
       const hits = faHits();
       box.innerHTML = hits.length ? `<div class="fa-hits">${hits.map(p =>
-        `<button data-act="fa-pick" data-id="${esc(p.id)}" class="${S.fa.pick===p.id?"on":""}"><span>${esc(p.name)}${rosterFa.has(p.name.toLowerCase()) ? ' <span class="tag fa">FA</span>' : ""}</span><span class="muted">${p.gp} GP · ${p.rank}. · ${p.total.toFixed(2)}</span></button>`
-      ).join("")}</div>` : (S.fa.q.trim().length >= 2 ? `<p class="muted">Yok</p>` : "");
+        `<button data-act="fa-pick" data-id="${esc(p.id)}" class="${S.fa.pick===p.id?"on":""}"><span>${esc(p.name)}</span><span class="muted">${p.gp} GP · ${p.rank}. · ${p.total.toFixed(2)}</span></button>`
+      ).join("")}</div>` : (S.fa.q.trim().length >= 2 ? `<p class="muted">Kadroda bu isimde FA yok</p>` : "");
     }
     return;
   } else if (t.dataset.act === "fa-gp") {

@@ -292,9 +292,7 @@ def project(players: list[dict], cal: dict, player_id: str, target_gp: float) ->
         },
         "economics": {
             "auctionMarketValue": mv,
-            "auctionMarketValueRounded": int(round(mv)),
             "faSalary": fa,
-            "faSalaryRounded": int(round(fa)),
             "faSalaryCap": MAX_FA,
             "marketSurplusIfFA": mv - fa,
             "replacementTotal": econ["replacementTotal"],
@@ -310,15 +308,41 @@ def project(players: list[dict], cal: dict, player_id: str, target_gp: float) ->
 
 def explain(res: dict) -> str:
     o, p, e = res["original"], res["projection"], res["economics"]
+    gp, tgt = o["games"], p["games"]
+    scale = f"{p['scaleFactor']:.3f}".replace(".", ",")
+    vol = "daha düşük şut hacmi" if p["scaleFactor"] < 1 else "daha yüksek şut hacmi" if p["scaleFactor"] > 1 else "aynı şut hacmi"
+    tot0, tot1 = f"{o['total']:.2f}", f"{p['total']:.2f}"
+    mv, fa = e["auctionMarketValue"], e["faSalary"]
+    raw = 1 + 0.30 * max(0.0, mv - 1)
+    cap = (
+        f"\n\nHam formül ${raw:.2f} verse de FA maaşı hiçbir koşulda $15’i geçemez; yazılan tutar $15.00’tir."
+        if raw > MAX_FA else ""
+    )
+    shown = raw if raw > MAX_FA else fa
     return (
-        f"{res['player']} {o['games']:.0f} maçta {o['total']:.2f} TOTAL ile {o['rank']}. sırada.\n\n"
-        f"{p['games']:.0f} maç projeksiyonunda mevcut maç-başı performansının değişmediği varsayıldı.\n\n"
-        f"Ham counting istatistikleri {p['games']:.0f}/{o['games']:.0f} = {p['scaleFactor']:.4f} katsayısıyla ölçeklendi.\n\n"
-        f"FG% ve FT% doğrudan çarpılmadı; şut hacmi dikkate alınarak weighted percentage impact yeniden hesaplandı.\n\n"
-        f"Ardından her kategori kalibre edilmiş z-score benzeri değer fonksiyonundan geçirildi ve H2H negatif kategori floor'u uygulandı.\n\n"
-        f"Son projected TOTAL yaklaşık {p['total']:.2f} oldu. Bu değer mevcut oyuncu havuzuna yerleştirildiğinde yaklaşık {p['rank']}. sıraya karşılık geliyor.\n\n"
-        f"Auction market value ≈ ${e['auctionMarketValue']:.2f} (${e['auctionMarketValueRounded']}). "
-        f"FA maaşı = min(15, 1 + 0.30×(MV−1)) ≈ ${e['faSalary']:.2f} (${e['faSalaryRounded']})."
+        f"{res['player']}, 2025/26 sezonunda {gp:g} maç oynadı ve HashtagBasketball Total sıralamasında "
+        f"{tot0} TOTAL ile {o['rank']}. sırada yer aldı.\n\n"
+        f"Maaş hesaplamasında standart olarak NBA’in ödül baremi olan {tgt:g} maç esas alınır. "
+        f"Bu nedenle önce oyuncunun mevcut üretimi {tgt:g} maça normalize edilir:\n\n"
+        f"{tgt:g} ÷ {gp:g} = {scale}\n\n"
+        f"Mevcut maç-başı performansının değişmediği varsayılarak sayı, ribaund, asist, top çalma, blok "
+        f"ve diğer hacim bazlı istatistikler bu katsayıyla {tgt:g} maça çekilir. Şut yüzdeleri doğrudan "
+        f"{scale} ile çarpılmaz; aynı isabet oranı korunur, ancak {vol} üzerinden yeniden ağırlıklandırılır.\n\n"
+        f"Burada mevcut {tot0} TOTAL değeri doğrudan {scale} ile çarpılmaz. TOTAL, kategorilerin birleşik "
+        f"değerinden oluştuğu için her kategori {tgt:g} maçlık yeni hacim üzerinden yeniden hesaplanır. "
+        f"Bu işlem sonunda {res['player']}’ın Projected TOTAL değeri {tot1} olur.\n\n"
+        f"{tot1} değeri, veri setindeki diğer oyuncuların mevcut TOTAL değerleri arasına yeniden "
+        f"yerleştirildiğinde {res['player']} {p['rank']}. sıraya karşılık gelir.\n\n"
+        f"12 takımlı, takım başına 13 oyunculu ve takım başına $210 salary cap kullanılan açık artırma "
+        f"ekonomisinde {p['rank']}. sıranın hesaplanan piyasa değeri yaklaşık ${mv:.2f} olur.\n\n"
+        f"FA kontratı bu piyasa değerinin tamamı üzerinden verilmez. Taban maaş $1 olarak alınır; "
+        f"$1 üzerindeki piyasa değerinin %30’u maaşa eklenir ve FA maaşı hiçbir koşulda $15’i geçemez.\n\n"
+        f"Hesaplama:\n\n"
+        f"$1 + 0,30 × (${mv:.2f} − $1) = ${shown:.2f}{cap}\n\n"
+        f"Bu tutar ayrıca tam dolara yuvarlanmaz; hesaplanan değer olduğu gibi korunur.\n\n"
+        f"Sonuç: 2025/26 sezonunda {gp:g} maçta {o['rank']}. sırada olan {res['player']}, "
+        f"{tgt:g} maç standardına göre {tot1} TOTAL / {p['rank']}. sıra / ${mv:.2f} piyasa değeri / "
+        f"${fa:.2f} FA maaşı ile değerlendirilir."
     )
 
 
@@ -388,7 +412,7 @@ def self_check() -> None:
     assert abs(g["projection"]["rank"] - 34) <= 2, g["projection"]["rank"]
     mvn = g["economics"]["auctionMarketValue"]
     assert 24 <= mvn <= 25.5, mvn
-    assert g["economics"]["faSalaryRounded"] == 8
+    assert _close(g["economics"]["faSalary"], 8.06, 0.05)
 
     # never scale TOTAL
     wrong = dej["total"] * 64 / 14
