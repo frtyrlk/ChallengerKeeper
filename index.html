@@ -261,7 +261,7 @@
       display: none;
     }
     .hint { font-size: 12px; color: var(--muted); font-weight: 600; }
-    .tag.fa { color: var(--heat); }
+    .tag.fa { color: var(--heat); font-weight: 800; font-style: italic; }
     .gm {
       background: none; border: 0; padding: 0; cursor: pointer;
       font-family: inherit; font-weight: 800; font-size: 13px;
@@ -288,7 +288,7 @@
     .glist button:hover, .glist button.on { border-color: var(--lime); }
 
     .fa-box { display: grid; gap: 12px; max-width: 720px; }
-    .fa-row { display: grid; grid-template-columns: 1fr 88px; gap: 8px; }
+    .fa-row { display: grid; gap: 8px; }
     .fa-row label { display: block; font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
     .fa-row input {
       width: 100%; font-family: inherit; font-weight: 700;
@@ -500,7 +500,8 @@ function capForYear(year) {
 function keepCeiling(year) { return capForYear(year) - AUCTION_MIN; }
 
 function nextSalary(pl) {
-  if (pl.fa || !hasSal(pl)) return 0;
+  if (pl.fa) return (S.faPay && S.faPay[pl.id]) || 0;
+  if (!hasSal(pl)) return 0;
   return pl.salary * (pl.viaTrade ? 1.05 : 1.08);
 }
 
@@ -545,7 +546,8 @@ const S = {
   rosters: cloneTeams(),
   gmId: null,
   board: { q: "", team: "", min: "", max: "", sort: "next", dir: -1 },
-  fa: { q: "", gp: 65, pick: null, result: null, loading: true, err: "" }
+  fa: { q: "", pick: null, result: null, loading: true, err: "" },
+  faPay: {}
 };
 
 (function load() {
@@ -570,7 +572,7 @@ function keepSet(tid) {
 
 function toggleKeep(tid, pid) {
   const pl = teamById(tid).players.find(x => x.id === pid);
-  if (pl && pl.fa) return toast("Bu oyuncunun fiyatı henüz yok.");
+  if (pl && pl.fa && !nextSalary(pl)) return toast("Bu FA'nın Hashtag verisi yok.");
   const set = keepSet(tid);
   if (set.has(pid)) set.delete(pid);
   else {
@@ -679,6 +681,7 @@ const VE = {
   FA_FACTOR: 0.3,
   REPLACEMENT_RANK: 157,
   FINAL_FROM: 145,
+  FA_GP: 65,
   MARKET: [[1, 3, 1.25], [4, 12, 1.15], [13, 24, 1.08], [25, 48, 1], [49, 84, 0.95], [85, 120, 0.85], [121, 144, 0.7]],
   players: [],
   cal: null
@@ -871,12 +874,23 @@ async function loadEngine() {
     VE.players = vePlayers(parseCSV(csv));
     VE.cal = cal;
     veCheck();
+    fillFaPay();
     S.fa.loading = false;
   } catch (e) {
     S.fa.loading = false;
     S.fa.err = "Değer motoru yüklenemedi. CSV ve kalibrasyon aynı klasörde olmalı.";
   }
-  if (S.view === "fa") render();
+  render();
+}
+
+function fillFaPay() {
+  S.faPay = {};
+  if (!VE.cal) return;
+  for (const t of S.rosters) for (const p of t.players) {
+    if (!p.fa) continue;
+    try { S.faPay[p.id] = projectPlayer(p.name, VE.FA_GP).economics.faSalary; }
+    catch (_) { S.faPay[p.id] = 0; }
+  }
 }
 
 function faHits() {
@@ -887,7 +901,6 @@ function faHits() {
 }
 
 function runFa(id) {
-  const gp = Number(S.fa.gp) || 65;
   const pl = veFind(id);
   if (!pl || !rosterFaNames().has(pl.name.toLocaleLowerCase("tr"))) {
     S.fa.result = null;
@@ -896,7 +909,7 @@ function runFa(id) {
   }
   try {
     S.fa.pick = id;
-    S.fa.result = projectPlayer(id, gp);
+    S.fa.result = projectPlayer(id, VE.FA_GP);
     S.fa.err = "";
   } catch (_) {
     S.fa.result = null;
@@ -918,10 +931,9 @@ function viewFa() {
       ${S.fa.err && VE.cal ? `<div class="warn">${esc(S.fa.err)}</div>` : ""}
       <div class="fa-row">
         <div><label for="fa-q">FA oyuncu</label><input id="fa-q" data-act="fa-q" type="search" autocomplete="off" value="${esc(S.fa.q)}" placeholder="Nickeil Alexander-Walker" /></div>
-        <div><label for="fa-gp">Maç</label><input id="fa-gp" data-act="fa-gp" type="number" min="1" max="82" value="${esc(S.fa.gp)}" /></div>
       </div>
       <div id="fa-hits">${hits.length ? `<div class="fa-hits">${hits.map(p =>
-        `<button data-act="fa-pick" data-id="${esc(p.id)}" class="${S.fa.pick===p.id?"on":""}"><span>${esc(p.name)}</span><span class="muted">${p.gp} GP · ${p.rank}. · ${p.total.toFixed(2)}</span></button>`
+        `<button data-act="fa-pick" data-id="${esc(p.id)}" class="${S.fa.pick===p.id?"on":""}"><span>${esc(p.name)} <span class="tag fa">FA</span></span><span class="muted">${p.gp} GP · ${p.rank}. · ${p.total.toFixed(2)}</span></button>`
       ).join("")}</div>` : (S.fa.q.trim().length >= 2 ? `<p class="muted">Kadroda bu isimde FA yok</p>` : "")}</div>
       ${r ? `<div class="fa-metrics">
         <div class="card"><div class="fa-k">TOTAL</div><div class="fa-v">${r.original.total.toFixed(2)} → ${r.projection.total.toFixed(2)}</div></div>
@@ -993,7 +1005,7 @@ function boardHtml() {
   const rows = boardList();
   const list = rows.length
     ? rows.map(({ t, p }) =>
-      `<button class="brow" data-act="find" data-tid="${esc(t.id)}" data-pid="${esc(p.id)}"><span>${esc(p.name)}</span><span class="tm">${esc(t.name)}</span><span class="sal">${hasSal(p) ? money(p.salary, 0) : "FA"}</span><span class="next">${(n => n ? money(n) : "—")(nextSalary(p))}</span></button>`
+      `<button class="brow" data-act="find" data-tid="${esc(t.id)}" data-pid="${esc(p.id)}"><span>${esc(p.name)}</span><span class="tm">${esc(t.name)}</span><span class="sal">${hasSal(p) ? money(p.salary, 0) : "FA"}</span><span class="next">${(n => n ? (p.fa ? usd2(n) : money(n)) : "—")(nextSalary(p))}</span></button>`
     ).join("")
     : `<div class="empty muted">Yok</div>`;
   if (!S.board.team) return list;
@@ -1030,7 +1042,7 @@ function viewOyuncu() {
 function viewTut() {
   const t = teamById(S.teamId);
   const set = keepSet(t.id);
-  const kept = t.players.filter(x => set.has(x.id) && hasSal(x));
+  const kept = t.players.filter(x => set.has(x.id));
   const raw = kept.reduce((s, x) => s + nextSalary(x), 0);
   const tot = roundTot(raw);
   const cap = capForYear(2);
@@ -1050,22 +1062,22 @@ function viewTut() {
     </div>
     <div class="plist">${[...t.players].sort(bySal).map(x => {
       const on = set.has(x.id);
-      const dim = x.fa || (!on && full);
-      const nxt = hasSal(x) && !x.fa ? money(nextSalary(x)) : "—";
+      const dim = (!nextSalary(x) && x.fa) || (!on && full);
+      const nxt = nextSalary(x) ? (x.fa ? usd2(nextSalary(x)) : money(nextSalary(x))) : "—";
       const tags = [
         x.viaTrade ? '<span class="tag">TAKAS +%5</span>' : "",
-        x.fa ? (hasSal(x) ? '<span class="tag fa">FA · $1</span>' : '<span class="tag fa">FA · fiyat yok</span>') : ""
+        x.fa ? '<span class="tag fa">FA</span>' : ""
       ].join(" ");
       return `<button class="prow ${on?"on":""} ${dim?"dim":""}" data-act="keep" data-id="${esc(x.id)}">
         <div class="ck">${on?"✓":""}</div>
         <div><div class="nm">${esc(x.name)} ${tags}</div>
           <div class="muted">${x.nba} · ${x.pos}</div></div>
-        <div class="sal">${hasSal(x) ? money(x.salary,0) : "—"}</div>
+        <div class="sal">${x.fa ? "$1" : (hasSal(x) ? money(x.salary,0) : "—")}</div>
         <div class="next">${nxt}</div>
       </button>`;
     }).join("")}</div>
     ${full ? `<div class="drop"><h3>Tutulmayanlar</h3>
-      <div class="muted">${dropped.slice().sort(bySal).map(x => esc(x.name) + " " + (hasSal(x) ? money(x.salary,0) : "FA")).join(" · ")}</div></div>` : `<p class="sub" style="margin-top:14px">Soldaki bu sezonki maaş, sağdaki gelecek sezon. FA tutulamaz.</p>`}`;
+      <div class="muted">${dropped.slice().sort(bySal).map(x => esc(x.name) + " " + (x.fa ? (nextSalary(x) ? usd2(nextSalary(x)) : "FA") : money(x.salary,0))).join(" · ")}</div></div>` : `<p class="sub" style="margin-top:14px">Soldaki bu sezonki maaş, sağdaki gelecek sezon. FA maaşı 65 maç standardından gelir; kuruş yuvarlanmaz.</p>`}`;
 }
 
 function afterSpent(team, give, take) {
@@ -1280,13 +1292,9 @@ document.addEventListener("input", e => {
     if (box) {
       const hits = faHits();
       box.innerHTML = hits.length ? `<div class="fa-hits">${hits.map(p =>
-        `<button data-act="fa-pick" data-id="${esc(p.id)}" class="${S.fa.pick===p.id?"on":""}"><span>${esc(p.name)}</span><span class="muted">${p.gp} GP · ${p.rank}. · ${p.total.toFixed(2)}</span></button>`
+        `<button data-act="fa-pick" data-id="${esc(p.id)}" class="${S.fa.pick===p.id?"on":""}"><span>${esc(p.name)} <span class="tag fa">FA</span></span><span class="muted">${p.gp} GP · ${p.rank}. · ${p.total.toFixed(2)}</span></button>`
       ).join("")}</div>` : (S.fa.q.trim().length >= 2 ? `<p class="muted">Kadroda bu isimde FA yok</p>` : "");
     }
-    return;
-  } else if (t.dataset.act === "fa-gp") {
-    S.fa.gp = t.value;
-    if (S.fa.pick) { runFa(S.fa.pick); render(); document.getElementById("fa-gp")?.focus(); }
     return;
   }
   else return;
