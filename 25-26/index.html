@@ -243,12 +243,12 @@
 
     nav.tabs {
       position: fixed; left: 0; right: 0; bottom: 0; z-index: 5;
-      display: grid; grid-template-columns: 1fr 1fr 1fr 1fr;
+      display: grid; grid-template-columns: 1fr 1fr 1fr 1fr 1fr;
       background: #0b0d11; border-top: 1px solid var(--line);
       padding: 8px 8px calc(8px + var(--safe-b));
     }
     nav.tabs button {
-      font-family: inherit; font-weight: 800; font-size: 12px;
+      font-family: inherit; font-weight: 800; font-size: 11px;
       background: transparent; color: var(--muted); border: 0;
       padding: 10px 4px; border-radius: 12px; cursor: pointer;
     }
@@ -287,6 +287,32 @@
     }
     .glist button:hover, .glist button.on { border-color: var(--lime); }
 
+    .fa-box { display: grid; gap: 12px; max-width: 720px; }
+    .fa-row { display: grid; grid-template-columns: 1fr 88px; gap: 8px; }
+    .fa-row label { display: block; font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+    .fa-row input {
+      width: 100%; font-family: inherit; font-weight: 700;
+      border-radius: 12px; border: 1px solid var(--line);
+      background: var(--card); color: var(--text); padding: 10px 12px; font-size: 14px;
+    }
+    .fa-hits { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+    .fa-hits button {
+      display: flex; justify-content: space-between; gap: 8px;
+      width: 100%; text-align: left; font-family: inherit; color: inherit;
+      background: var(--card); border: 0; border-bottom: 1px solid var(--line);
+      padding: 10px 12px; cursor: pointer; font-weight: 700; font-size: 14px;
+    }
+    .fa-hits button:last-child { border-bottom: 0; }
+    .fa-hits button:hover, .fa-hits button.on { background: var(--lime-dim); }
+    .fa-metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+    .fa-metrics .card { cursor: default; transform: none; }
+    .fa-metrics .card:hover { border-color: var(--line); transform: none; }
+    .fa-k { font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+    .fa-v { font-family: "Barlow Condensed", sans-serif; font-weight: 800; font-style: italic; font-size: 28px; margin-top: 4px; }
+    .fa-v.lime { color: var(--lime); }
+    .explain { white-space: pre-wrap; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px; font-size: 13px; font-weight: 600; line-height: 1.5; }
+    .warn { background: var(--heat-dim); border: 1px solid rgba(255,77,46,.4); color: #ffc4b8; padding: 12px 14px; border-radius: 14px; font-size: 13px; font-weight: 600; }
+
     @media (max-width: 980px) {
       body.lig .grid {
         grid-template-columns: repeat(3, 1fr);
@@ -298,6 +324,7 @@
       .tips-row { flex-direction: column; }
       .side .plist { max-height: 48vh; }
       .stats { grid-template-columns: 1fr; }
+      .fa-metrics { grid-template-columns: 1fr 1fr; }
       .brand .title { font-size: 20px; }
       .find { flex: 1 1 160px; max-width: none; }
       .card { min-height: 0; }
@@ -330,10 +357,11 @@
     <div id="app"></div>
   </div>
   <nav class="tabs">
-    <button data-act="view" data-v="lig" class="on">Lig</button>
-    <button data-act="view" data-v="tut">Keeper</button>
-    <button data-act="view" data-v="takas">Takas</button>
-    <button data-act="view" data-v="oyuncu">Oyuncular</button>
+        <button data-act="view" data-v="lig" class="on">Lig</button>
+        <button data-act="view" data-v="tut">Keeper</button>
+        <button data-act="view" data-v="takas">Takas</button>
+        <button data-act="view" data-v="fa">FA $</button>
+        <button data-act="view" data-v="oyuncu">Oyuncular</button>
   </nav>
   <div class="toast" id="toast"></div>
   <div id="gate" hidden>
@@ -347,7 +375,7 @@
 const YEAR1_CAP = 200;
 const KEEP_N = 9;
 const AUCTION_MIN = 4;
-const RULES = "Geçen sezonun açık artırmasında ödenen fiyat, oyuncunun bu sezonki maaşının baz noktasıdır. Aynı takımda tutulursa bu sezon ×1,08, sezon içi takasla gelip tutulursa ×1,05 ile çarpılır. 9 oyuncu tutmak zorunludur. Açık artırmada 4 oyuncu seçileceği için en az $4 ile bu sezonun draftına girilmelidir. Bu da aslında pratikte $206 bir cap demektir. Free agent’ların yeni sezon maaşı henüz belli değildir; drafttan önce Yahoo ortalama fiyatının %75’i yazılacaktır. Takas değerleri yeni sezon başlayana kadar $1'dır.";
+const RULES = "Geçen sezonun açık artırmasında ödenen fiyat, oyuncunun bu sezonki maaşının baz noktasıdır. Aynı takımda tutulursa bu sezon ×1,08, sezon içi takasla gelip tutulursa ×1,05 ile çarpılır. 9 oyuncu tutmak zorunludur. Açık artırmada 4 oyuncu seçileceği için en az $4 ile bu sezonun draftına girilmelidir. Bu da aslında pratikte $206 bir cap demektir. FA maaşı, 65 maç projeksiyonundaki auction değerinin %30’u (taban $1, tavan $15); FA $ sekmesinden hesaplanır. Takas değerleri yeni sezon başlayana kadar $1'dır.";
 const TEAMS = [
   { id: "godbrother", name: "Kingodisco", color: "#c8f542", players: [
     p("Victor Wembanyama","SAS","C",91), p("Josh Giddey","CHI","G",32), tr("Donovan Clingan","POR","C",11),
@@ -515,7 +543,8 @@ const S = {
   keepers: {},
   rosters: cloneTeams(),
   gmId: null,
-  board: { q: "", team: "", min: "", max: "", sort: "next", dir: -1 }
+  board: { q: "", team: "", min: "", max: "", sort: "next", dir: -1 },
+  fa: { q: "", gp: 65, pick: null, result: null, loading: true, err: "" }
 };
 
 (function load() {
@@ -638,6 +667,246 @@ function showGate() {
   document.getElementById("gate").hidden = false;
 }
 
+const VE = {
+  CATS: ["FG", "FT", "THREE_PM", "PTS", "REB", "AST", "STL", "BLK", "TO"],
+  COUNTING: ["fgm", "fga", "ftm", "fta", "threePM", "pts", "reb", "ast", "stl", "blk", "tov", "minutes"],
+  FLOOR: -2,
+  DRAFTED: 156,
+  PREMIUM: 2364,
+  MIN_SAL: 1,
+  MAX_FA: 15,
+  FA_FACTOR: 0.3,
+  REPLACEMENT_RANK: 157,
+  FINAL_FROM: 145,
+  MARKET: [[1, 3, 1.25], [4, 12, 1.15], [13, 24, 1.08], [25, 48, 1], [49, 84, 0.95], [85, 120, 0.85], [121, 144, 0.7]],
+  players: [],
+  cal: null
+};
+
+function veSlug(name) {
+  return name.toLowerCase().replace(/'/g, "").replace(/\./g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+}
+
+function parseCSV(text) {
+  text = text.replace(/^\uFEFF/, "");
+  const rows = [];
+  let row = [], cell = "", q = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (q) {
+      if (c === '"') { if (text[i + 1] === '"') { cell += '"'; i++; } else q = false; }
+      else cell += c;
+    } else if (c === '"') q = true;
+    else if (c === ",") { row.push(cell); cell = ""; }
+    else if (c === "\n" || c === "\r") {
+      if (c === "\r" && text[i + 1] === "\n") i++;
+      row.push(cell);
+      if (row.some(x => x !== "")) rows.push(row);
+      row = []; cell = "";
+    } else cell += c;
+  }
+  if (cell || row.length) { row.push(cell); rows.push(row); }
+  const header = rows[0];
+  return rows.slice(1).map(r => Object.fromEntries(header.map((h, i) => [h, r[i] ?? ""])));
+}
+
+function vePlayers(rows) {
+  return rows.map(r => {
+    const name = (r.PLAYER || "").trim();
+    return {
+      rank: +r.RANK, rankChange: +(r.RANK_CHANGE || 0), name, id: veSlug(name),
+      pos: r.POS || "", team: r.TEAM || "", gp: +r.GP, minutes: +r.MPG,
+      fgPct: +r.FG_PCT, fgm: +r.FGM, fga: +r.FGA, ftPct: +r.FT_PCT, ftm: +r.FTM, fta: +r.FTA,
+      threePM: +r["3PM"], pts: +r.PTS, reb: +r.TREB, ast: +r.AST, stl: +r.STL, blk: +r.BLK, tov: +r.TO,
+      total: +r.TOTAL
+    };
+  });
+}
+
+function veFeatures(p, fg, ft) {
+  return [p.fgm - p.fga * fg, p.ftm - p.fta * ft, p.threePM, p.pts, p.reb, p.ast, p.stl, p.blk, p.tov];
+}
+
+function veScore(p, cal) {
+  const x = veFeatures(p, cal.leagueFG, cal.leagueFT);
+  let t = 0;
+  VE.CATS.forEach((c, i) => {
+    const { a, b } = cal.coefficients[c];
+    t += (cal.categoryWeights[c] || 1) * Math.max(VE.FLOOR, a + b * x[i]);
+  });
+  return t;
+}
+
+function veScale(p, gp) {
+  const s = gp / p.gp;
+  const q = { ...p, gp, scaleFactor: s };
+  VE.COUNTING.forEach(k => { q[k] = p[k] * s; });
+  q.fgPct = q.fga ? q.fgm / q.fga : 0;
+  q.ftPct = q.fta ? q.ftm / q.fta : 0;
+  return q;
+}
+
+function veWeight(rank) {
+  if (rank >= VE.FINAL_FROM) return 0;
+  for (const [lo, hi, m] of VE.MARKET) if (rank >= lo && rank <= hi) return m;
+  return 0;
+}
+
+function veAuction(totals) {
+  const order = totals.map((t, i) => i).sort((a, b) => totals[b] - totals[a] || a - b);
+  const repl = order.length >= VE.REPLACEMENT_RANK ? totals[order[VE.REPLACEMENT_RANK - 1]] : 0;
+  const rows = order.map((i, slot0) => {
+    const rank = slot0 + 1;
+    const surplus = Math.max(0, totals[i] - repl);
+    const marketScore = rank <= 144 ? surplus * veWeight(rank) : 0;
+    return { index: i, rank, total: totals[i], surplus, marketScore };
+  });
+  const prem = rows.reduce((s, r) => r.rank <= 144 ? s + r.marketScore : s, 0);
+  const dps = prem ? VE.PREMIUM / prem : 0;
+  const out = new Array(totals.length);
+  for (const r of rows) {
+    r.auctionMarketValue = r.rank >= VE.FINAL_FROM ? VE.MIN_SAL : VE.MIN_SAL + r.marketScore * dps;
+    r.replacementTotal = repl;
+    out[r.index] = r;
+  }
+  return out;
+}
+
+function faSalary(mv) {
+  return Math.min(VE.MAX_FA, VE.MIN_SAL + VE.FA_FACTOR * Math.max(0, mv - VE.MIN_SAL));
+}
+
+function veFind(id) {
+  const q = id.toLowerCase();
+  return VE.players.find(p => p.id === q || p.name.toLowerCase() === q);
+}
+
+function projectPlayer(id, targetGP) {
+  const target = veFind(id);
+  if (!target) throw new Error("player");
+  if (!(target.gp > 0)) throw new Error("gp");
+  const scaled = veScale(target, targetGP);
+  const projectedTotal = veScore(scaled, VE.cal);
+  const others = VE.players.filter(p => p !== target).map(p => p.total);
+  const newRank = 1 + others.filter(t => t > projectedTotal).length;
+  const mixed = VE.players.map(p => p === target ? projectedTotal : p.total);
+  const econ = veAuction(mixed)[VE.players.indexOf(target)];
+  const mv = econ.auctionMarketValue;
+  const fa = faSalary(mv);
+  return {
+    player: target.name,
+    playerId: target.id,
+    original: { games: target.gp, rank: target.rank, total: target.total },
+    projection: {
+      games: targetGP,
+      scaleFactor: scaled.scaleFactor,
+      stats: Object.fromEntries(["fgm", "fga", "ftm", "fta", "threePM", "pts", "reb", "ast", "stl", "blk", "tov"].map(k => [k, scaled[k]])),
+      total: projectedTotal,
+      rank: newRank
+    },
+    economics: {
+      auctionMarketValue: mv,
+      auctionMarketValueRounded: Math.round(mv),
+      faSalary: fa,
+      faSalaryRounded: Math.round(fa),
+      faSalaryCap: VE.MAX_FA,
+      marketSurplusIfFA: mv - fa,
+      replacementTotal: econ.replacementTotal
+    },
+    change: { total: projectedTotal - target.total, rank: target.rank - newRank },
+    warning: VE.cal.mae >= 0.01
+  };
+}
+
+function veExplain(res) {
+  const o = res.original, p = res.projection, e = res.economics;
+  return `${res.player} ${o.games} maçta ${o.total.toFixed(2)} TOTAL ile ${o.rank}. sırada.\n\n`
+    + `${p.games} maç projeksiyonunda mevcut maç-başı performansının değişmediği varsayıldı.\n\n`
+    + `Ham counting istatistikleri ${p.games}/${o.games} = ${p.scaleFactor.toFixed(4)} katsayısıyla ölçeklendi.\n\n`
+    + `FG% ve FT% doğrudan çarpılmadı; şut hacmi dikkate alınarak weighted percentage impact yeniden hesaplandı.\n\n`
+    + `Ardından her kategori kalibre edilmiş z-score benzeri değer fonksiyonundan geçirildi ve H2H negatif kategori floor'u uygulandı.\n\n`
+    + `Son projected TOTAL yaklaşık ${p.total.toFixed(2)} oldu. Bu değer mevcut oyuncu havuzuna yerleştirildiğinde yaklaşık ${p.rank}. sıraya karşılık geliyor.\n\n`
+    + `Auction market value ≈ $${e.auctionMarketValue.toFixed(2)} ($${e.auctionMarketValueRounded}). `
+    + `FA maaşı = min(15, 1 + 0.30×(MV−1)) ≈ $${e.faSalary.toFixed(2)} ($${e.faSalaryRounded}).`;
+}
+
+function veCheck() {
+  const b = projectPlayer("dejounte-murray", 64);
+  if (Math.abs(b.projection.total - 16.98) > 0.05 || b.projection.rank !== 42) throw new Error("dejounte proj");
+  if (faSalary(80) !== 15) throw new Error("fa cap");
+  const n = projectPlayer("nickeil-alexander-walker", 65);
+  if (Math.abs(n.projection.total - 17.97) > 0.15 || Math.abs(n.projection.rank - 34) > 2) throw new Error("nickeil");
+  if (n.economics.faSalaryRounded !== 8) throw new Error("nickeil fa");
+}
+
+async function loadEngine() {
+  try {
+    const [csv, cal] = await Promise.all([
+      fetch("fantasy_basketball_list.csv").then(r => { if (!r.ok) throw new Error("csv"); return r.text(); }),
+      fetch("calibration.json").then(r => { if (!r.ok) throw new Error("cal"); return r.json(); })
+    ]);
+    VE.players = vePlayers(parseCSV(csv));
+    VE.cal = cal;
+    veCheck();
+    S.fa.loading = false;
+  } catch (e) {
+    S.fa.loading = false;
+    S.fa.err = "Değer motoru yüklenemedi. CSV ve kalibrasyon aynı klasörde olmalı.";
+  }
+  if (S.view === "fa") render();
+}
+
+function faHits() {
+  const q = S.fa.q.trim().toLocaleLowerCase("tr");
+  if (q.length < 2) return [];
+  return VE.players.filter(p => p.name.toLocaleLowerCase("tr").includes(q)).slice(0, 12);
+}
+
+function runFa(id) {
+  const gp = Number(S.fa.gp) || 65;
+  try {
+    S.fa.pick = id;
+    S.fa.result = projectPlayer(id, gp);
+    S.fa.err = "";
+  } catch (_) {
+    S.fa.result = null;
+    S.fa.err = "Bu oyuncu projekte edilemedi (GP=0 olabilir).";
+  }
+}
+
+function viewFa() {
+  if (S.fa.loading) return `<p class="sub">65 maç projeksiyonu ve FA maaşı yükleniyor…</p>`;
+  if (S.fa.err && !VE.cal) return `<p class="sub">${esc(S.fa.err)}</p>`;
+  const hits = faHits();
+  const r = S.fa.result;
+  const rosterFa = new Set();
+  for (const t of S.rosters) for (const p of t.players) if (p.fa) rosterFa.add(p.name.toLowerCase());
+  const warn = VE.cal && VE.cal.mae >= 0.01
+    ? `<div class="warn">Kalibrasyon MAE ${VE.cal.mae.toFixed(4)} — hedef &lt; 0.01. Sonuca ihtiyatlı bak.</div>`
+    : "";
+  const pick = r ? VE.players.find(p => p.id === r.playerId) : null;
+  const isFa = pick && rosterFa.has(pick.name.toLowerCase());
+  return `<p class="sub">FA maaşı: 65 maça ölçeklenmiş TOTAL → $210 auction değeri → %30 iskonto, tavan $15. TOTAL doğrudan maç oranıyla çarpılmaz.</p>
+    <div class="fa-box">
+      ${warn}
+      <div class="fa-row">
+        <div><label for="fa-q">Oyuncu</label><input id="fa-q" data-act="fa-q" type="search" autocomplete="off" value="${esc(S.fa.q)}" placeholder="Dejounte Murray" /></div>
+        <div><label for="fa-gp">Maç</label><input id="fa-gp" data-act="fa-gp" type="number" min="1" max="82" value="${esc(S.fa.gp)}" /></div>
+      </div>
+      ${`<div id="fa-hits">${hits.length ? `<div class="fa-hits">${hits.map(p =>
+        `<button data-act="fa-pick" data-id="${esc(p.id)}" class="${S.fa.pick===p.id?"on":""}"><span>${esc(p.name)}${rosterFa.has(p.name.toLowerCase()) ? ' <span class="tag fa">FA</span>' : ""}</span><span class="muted">${p.gp} GP · ${p.rank}. · ${p.total.toFixed(2)}</span></button>`
+      ).join("")}</div>` : (S.fa.q.trim().length >= 2 ? `<p class="muted">Yok</p>` : "")}</div>`}
+      ${r ? `<div class="fa-metrics">
+        <div class="card"><div class="fa-k">TOTAL</div><div class="fa-v">${r.original.total.toFixed(2)} → ${r.projection.total.toFixed(2)}</div></div>
+        <div class="card"><div class="fa-k">Sıra</div><div class="fa-v">${r.original.rank} → ${r.projection.rank}</div></div>
+        <div class="card"><div class="fa-k">Auction</div><div class="fa-v">$${r.economics.auctionMarketValueRounded}</div></div>
+        <div class="card"><div class="fa-k">FA maaş</div><div class="fa-v lime">$${r.economics.faSalaryRounded}</div></div>
+      </div>
+      <p class="muted">${esc(r.player)}${isFa ? " · kadroda FA" : ""} · ${r.projection.games} maç · scale ${r.projection.scaleFactor.toFixed(4)} · ham MV $${r.economics.auctionMarketValue.toFixed(2)} · surplus $${r.economics.marketSurplusIfFA.toFixed(2)}</p>
+      <div class="explain">${esc(veExplain(r))}</div>` : ""}
+    </div>`;
+}
+
 function render() {
   document.documentElement.classList.toggle("lig", S.view === "lig");
   document.body.classList.toggle("lig", S.view === "lig");
@@ -646,6 +915,7 @@ function render() {
   if (S.view === "lig") app.innerHTML = viewLig();
   else if (S.view === "tut") app.innerHTML = viewTut();
   else if (S.view === "oyuncu") app.innerHTML = viewOyuncu();
+  else if (S.view === "fa") app.innerHTML = viewFa();
   else app.innerHTML = viewTakas();
 }
 
@@ -956,6 +1226,11 @@ document.addEventListener("click", e => {
   else if (act === "copy-keep") { const s = keepLine(); if (s) copyText(s); return; }
   else if (act === "gm") setGm(t.dataset.id);
   else if (act === "gate") { showGate(); return; }
+  else if (act === "fa-pick") {
+    const p = veFind(t.dataset.id);
+    if (p) S.fa.q = p.name;
+    runFa(t.dataset.id);
+  }
   else if (act === "reset") resetDraft();
   else return;
   render();
@@ -973,6 +1248,23 @@ document.addEventListener("input", e => {
   if (t.dataset.act === "board-q") S.board.q = t.value;
   else if (t.dataset.act === "board-min") S.board.min = t.value;
   else if (t.dataset.act === "board-max") S.board.max = t.value;
+  else if (t.dataset.act === "fa-q") {
+    S.fa.q = t.value;
+    const box = document.getElementById("fa-hits");
+    if (box) {
+      const rosterFa = new Set();
+      for (const tm of S.rosters) for (const p of tm.players) if (p.fa) rosterFa.add(p.name.toLowerCase());
+      const hits = faHits();
+      box.innerHTML = hits.length ? `<div class="fa-hits">${hits.map(p =>
+        `<button data-act="fa-pick" data-id="${esc(p.id)}" class="${S.fa.pick===p.id?"on":""}"><span>${esc(p.name)}${rosterFa.has(p.name.toLowerCase()) ? ' <span class="tag fa">FA</span>' : ""}</span><span class="muted">${p.gp} GP · ${p.rank}. · ${p.total.toFixed(2)}</span></button>`
+      ).join("")}</div>` : (S.fa.q.trim().length >= 2 ? `<p class="muted">Yok</p>` : "");
+    }
+    return;
+  } else if (t.dataset.act === "fa-gp") {
+    S.fa.gp = t.value;
+    if (S.fa.pick) { runFa(S.fa.pick); render(); document.getElementById("fa-gp")?.focus(); }
+    return;
+  }
   else return;
   drawBoard();
 });
@@ -1012,6 +1304,7 @@ function selfCheck() {
   if (!(ok120 && no130 && r1 && r2 && cap && wembyKeep && faSkip && keepFa && keepMax && addOnly)) throw new Error("keeper math failed");
 }
 selfCheck();
+loadEngine();
 if (S.gmId) {
   S.teamId = S.gmId;
   S.tradeB = S.gmId;
