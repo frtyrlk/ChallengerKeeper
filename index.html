@@ -418,8 +418,7 @@ const TEAMS = [
     fa("Luka Garza","BOS","C"), fa("Jericho Sims","MIL","F,C")
   ]},
   { id: "harakiri", name: "Harakiri", color: "#f97316", players: [
-    p("Jalen Brunson","NYK","G",37), p("Lauri Markkanen","UTA","F",15), p("Joel Embiid","PHI","C",11),
-    p("Desmond Bane","ORL","G,F",28), p("Franz Wagner","ORL","F",21),
+    p("Jalen Brunson","NYK","G",37), tr("Luka Doncic","LAL","G",73), p("Joel Embiid","PHI","C",11),
     fa("Dejounte Murray","NOP","G"), p("OG Anunoby","NYK","F",11), fa("Paul George","BOS","F"),
     p("Immanuel Quickley","TOR","G",5), p("Myles Turner","MIL","C",18), p("Miles Bridges","PHX","F",8),
     fa("DeMar DeRozan","DEN","F"), fa("Tre Jones","CHI","G"), fa("GG Jackson","MEM","F,C"),
@@ -464,7 +463,8 @@ const TEAMS = [
     p("Cason Wallace","OKC","G,F",2), p("Aaron Gordon","DEN","F,C",2), fa("Tobias Harris","SAS","F")
   ]},
   { id: "doomed", name: "YOU'RE DOOMED!", color: "#e879f9", players: [
-    p("Luka Doncic","LAL","G",73), p("Scottie Barnes","TOR","F,C",32), tr("Derrick White","BOS","G",39),
+    tr("Lauri Markkanen","UTA","F",15), tr("Desmond Bane","ORL","G,F",28), tr("Franz Wagner","ORL","F",21),
+    p("Scottie Barnes","TOR","F,C",32), tr("Derrick White","BOS","G",39),
     fa("Nickeil Alexander-Walker","ATL","G"), p("Payton Pritchard","BOS","G",11),
     fa("Mark Williams","PHX","C"), fa("Kevin Porter Jr.","MIL","G"), fa("Keegan Murray","SAC","F"),
     fa("Saddiq Bey","NOP","F"), fa("Quentin Grimes","LAL","G,F"), fa("Kyle Filipowski","UTA","F,C"),
@@ -552,7 +552,7 @@ const S = {
 
 (function load() {
   try {
-    const raw = localStorage.getItem("challenger-keeper-v4");
+    const raw = localStorage.getItem("challenger-keeper-v5");
     if (!raw) return;
     const d = JSON.parse(raw);
     if (d.rosters) S.rosters = d.rosters;
@@ -562,7 +562,7 @@ const S = {
 })();
 
 function save() {
-  localStorage.setItem("challenger-keeper-v4", JSON.stringify({ rosters: S.rosters, keepers: S.keepers, gmId: S.gmId }));
+  localStorage.setItem("challenger-keeper-v5", JSON.stringify({ rosters: S.rosters, keepers: S.keepers, gmId: S.gmId }));
 }
 
 function keepSet(tid) {
@@ -1058,7 +1058,7 @@ function viewTut() {
     <div class="stats">
       <div class="stat ${set.size===KEEP_N?"ok":"bad"}"><span class="muted">Tutulan</span><b>${set.size}/${KEEP_N}</b></div>
       <div class="stat ${tot > keepCeiling(2)?"bad":""}"><span class="muted">Tutulan toplam</span><b>${money(tot,0)}</b><div class="hint">En fazla ${money(keepCeiling(2),0)} · kuruşlu ${raw.toFixed(2)}</div></div>
-      <div class="stat ${auction>=AUCTION_MIN?"ok":"bad"}"><span class="muted">Kalan bütçe</span><b>${money(auction,0)}</b><div class="hint">Tavan ${money(cap,0)} · en az ${money(AUCTION_MIN,0)}</div></div>
+      <div class="stat ${auction>=AUCTION_MIN?"ok":"bad"}"><span class="muted">Kalan bütçe</span><b>${money(auction,0)}</b><div class="hint">${money(cap,0)} − tutulanlar</div></div>
     </div>
     <div class="plist">${[...t.players].sort(bySal).map(x => {
       const on = set.has(x.id);
