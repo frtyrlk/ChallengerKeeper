@@ -103,7 +103,8 @@
     .card.on { border-color: var(--lime); box-shadow: 0 0 0 1px var(--lime) inset; }
     .card .row { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
     .tname { font-weight: 800; font-size: 16px; }
-    .spent { font-variant-numeric: tabular-nums; color: var(--lime); font-weight: 800; }
+    .spent { font-variant-numeric: tabular-nums; color: var(--lime); font-weight: 800; white-space: nowrap; }
+    .spent .used { color: #ff9b8f; }
     .muted { color: var(--muted); font-size: 12px; font-weight: 600; }
     .card .muted { margin-top: 4px; }
     .stars { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
@@ -514,6 +515,17 @@ function officialKeeps() {
   return Object.fromEntries(Object.entries(KEEPS).map(([id, names]) => [id, names.slice()]));
 }
 
+const POOL = [];
+for (const t of TEAMS) {
+  const keep = new Set(KEEPS[t.id] || []);
+  const stay = [];
+  for (const p of t.players) {
+    if (keep.has(p.id)) stay.push(p);
+    else POOL.push({ t: { id: t.id, name: t.name }, p });
+  }
+  t.players = stay;
+}
+
 function cloneTeams() {
   return TEAMS.map(t => ({ ...t, players: t.players.map(x => ({ ...x })) }));
 }
@@ -582,7 +594,7 @@ const S = {
     const raw = v6 || prev;
     if (!raw) return;
     const d = JSON.parse(raw);
-    if (v6 && d.keepsRev === 1) {
+    if (v6 && d.keepsRev === 2) {
       if (d.rosters) S.rosters = d.rosters;
       if (d.keepers) S.keepers = d.keepers;
     }
@@ -591,7 +603,7 @@ const S = {
 })();
 
 function save() {
-  localStorage.setItem("challenger-keeper-v6", JSON.stringify({ rosters: S.rosters, keepers: S.keepers, gmId: S.gmId, keepsRev: 1 }));
+  localStorage.setItem("challenger-keeper-v6", JSON.stringify({ rosters: S.rosters, keepers: S.keepers, gmId: S.gmId, keepsRev: 2 }));
 }
 
 function keepSet(tid) {
@@ -923,6 +935,11 @@ function fillFaPay() {
     try { S.faPay[p.id] = projectPlayer(p.name, VE.FA_GP).economics.faSalary; }
     catch (_) { S.faPay[p.id] = 0; }
   }
+  for (const { p } of POOL) {
+    if (!p.fa) continue;
+    try { S.faPay[p.id] = projectPlayer(p.name, VE.FA_GP).economics.faSalary; }
+    catch (_) { S.faPay[p.id] = 0; }
+  }
 }
 
 function faHits() {
@@ -992,12 +1009,12 @@ function render() {
 function viewLig() {
   return `<p class="sub">${RULES}</p>
     <div class="grid">${S.rosters.map(t => {
-      const kept = t.players.filter(x => keepSet(t.id).has(x.id));
-      const left = capForYear(2) - roundTot(kept.reduce((s, x) => s + nextSalary(x), 0));
+      const tot = roundTot(t.players.reduce((s, x) => s + nextSalary(x), 0));
+      const left = capForYear(2) - tot;
       return `<button class="card ${t.id===S.gmId?"on":""}" data-act="open-tut" data-id="${t.id}">
-        <div class="row"><div class="tname">${esc(t.name)}</div><div class="spent">${money(left,0)}</div></div>
-        <div class="muted">${kept.length} keeper · kalan bütçe</div>
-        <div class="stars">${kept.slice().sort(bySal).map(x => `<span>${esc(x.name)}<b>${money(x.fa ? 1 : (x.salary || 0),0)}</b></span>`).join("")}</div>
+        <div class="row"><div class="tname">${esc(t.name)}</div><div class="spent"><span class="used">${money(tot,0)}</span>/${money(left,0)}</div></div>
+        <div class="muted">harcanan / kalan</div>
+        <div class="stars">${t.players.slice().sort(bySal).map(x => `<span>${esc(x.name)}<b>${money(x.fa ? 1 : (x.salary || 0),0)}</b></span>`).join("")}</div>
       </button>`;
     }).join("")}</div>`;
 }
@@ -1012,9 +1029,9 @@ function boardList() {
   const min = S.board.min === "" || Number.isNaN(Number(S.board.min)) ? null : Number(S.board.min);
   const max = S.board.max === "" || Number.isNaN(Number(S.board.max)) ? null : Number(S.board.max);
   const rows = [];
-  for (const t of S.rosters) for (const p of t.players) {
+  const src = S.board.pool === "open" ? POOL : S.rosters.flatMap(t => t.players.map(p => ({ t, p })));
+  for (const { t, p } of src) {
     if (S.board.team && t.id !== S.board.team) continue;
-    if (S.board.pool === "open" && keepSet(t.id).has(p.id)) continue;
     if (q && !p.name.toLocaleLowerCase("tr").includes(q)) continue;
     const basis = S.board.pool === "open" ? tradeSal(p) : nextSalary(p);
     if (min != null && !(basis > 0 && basis >= min)) continue;
