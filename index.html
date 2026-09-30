@@ -555,7 +555,6 @@ function pkgTotal(players) {
 function teamById(id) { return S.rosters.find(t => t.id === id); }
 
 function spent(t) { return t.players.filter(hasSal).reduce((s, x) => s + x.salary, 0); }
-function faN(t) { return t.players.filter(x => x.fa).length; }
 
 const S = {
   view: "lig",
@@ -583,7 +582,7 @@ const S = {
     const raw = v6 || prev;
     if (!raw) return;
     const d = JSON.parse(raw);
-    if (v6) {
+    if (v6 && d.keepsRev === 1) {
       if (d.rosters) S.rosters = d.rosters;
       if (d.keepers) S.keepers = d.keepers;
     }
@@ -592,7 +591,7 @@ const S = {
 })();
 
 function save() {
-  localStorage.setItem("challenger-keeper-v6", JSON.stringify({ rosters: S.rosters, keepers: S.keepers, gmId: S.gmId }));
+  localStorage.setItem("challenger-keeper-v6", JSON.stringify({ rosters: S.rosters, keepers: S.keepers, gmId: S.gmId, keepsRev: 1 }));
 }
 
 function keepSet(tid) {
@@ -993,13 +992,12 @@ function render() {
 function viewLig() {
   return `<p class="sub">${RULES}</p>
     <div class="grid">${S.rosters.map(t => {
-      const top = [...t.players].filter(hasSal).sort(bySal).slice(0,6);
-      const ks = keepSet(t.id).size;
-      const nfa = faN(t);
+      const kept = t.players.filter(x => keepSet(t.id).has(x.id));
+      const left = capForYear(2) - roundTot(kept.reduce((s, x) => s + nextSalary(x), 0));
       return `<button class="card ${t.id===S.gmId?"on":""}" data-act="open-tut" data-id="${t.id}">
-        <div class="row"><div class="tname">${esc(t.name)}</div><div class="spent">${money(spent(t),0)}</div></div>
-        <div class="muted">${t.players.length} oyuncu · ${nfa} FA · keeper ${ks}/${KEEP_N}</div>
-        <div class="stars">${top.map(x => `<span>${esc(x.name)}<b>${money(x.salary,0)}</b></span>`).join("")}</div>
+        <div class="row"><div class="tname">${esc(t.name)}</div><div class="spent">${money(left,0)}</div></div>
+        <div class="muted">${kept.length} keeper · kalan bütçe</div>
+        <div class="stars">${kept.slice().sort(bySal).map(x => `<span>${esc(x.name)}<b>${money(x.fa ? 1 : (x.salary || 0),0)}</b></span>`).join("")}</div>
       </button>`;
     }).join("")}</div>`;
 }
