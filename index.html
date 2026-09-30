@@ -687,8 +687,11 @@ const VE = {
   cal: null
 };
 
+function foldName(s) {
+  return s.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "");
+}
 function veSlug(name) {
-  return name.toLowerCase().replace(/'/g, "").replace(/\./g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  return foldName(name).replace(/'/g, "").replace(/\./g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
 
 function parseCSV(text) {
@@ -781,8 +784,8 @@ function faSalary(mv) {
 }
 
 function veFind(id) {
-  const q = id.toLowerCase();
-  return VE.players.find(p => p.id === q || p.name.toLowerCase() === q);
+  const slug = veSlug(id), q = foldName(id);
+  return VE.players.find(p => p.id === slug || foldName(p.name) === q);
 }
 
 function projectPlayer(id, targetGP) {
@@ -824,7 +827,7 @@ function usd2(n) { return "$" + Number(n).toFixed(2); }
 
 function rosterFaNames() {
   const s = new Set();
-  for (const t of S.rosters) for (const p of t.players) if (p.fa) s.add(p.name.toLocaleLowerCase("tr"));
+  for (const t of S.rosters) for (const p of t.players) if (p.fa) s.add(foldName(p.name));
   return s;
 }
 
@@ -895,14 +898,14 @@ function fillFaPay() {
 
 function faHits() {
   const names = rosterFaNames();
-  const q = S.fa.q.trim().toLocaleLowerCase("tr");
+  const q = foldName(S.fa.q.trim());
   if (q.length < 2) return [];
-  return VE.players.filter(p => names.has(p.name.toLocaleLowerCase("tr")) && p.name.toLocaleLowerCase("tr").includes(q)).slice(0, 12);
+  return VE.players.filter(p => names.has(foldName(p.name)) && foldName(p.name).includes(q)).slice(0, 12);
 }
 
 function runFa(id) {
   const pl = veFind(id);
-  if (!pl || !rosterFaNames().has(pl.name.toLocaleLowerCase("tr"))) {
+  if (!pl || !rosterFaNames().has(foldName(pl.name))) {
     S.fa.result = null;
     S.fa.err = "Yalnızca kadrodaki FA oyuncuları hesaplanır.";
     return;
