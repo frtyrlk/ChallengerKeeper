@@ -1009,10 +1009,12 @@ function render() {
 function viewLig() {
   return `<p class="sub">${RULES}</p>
     <div class="grid">${S.rosters.map(t => {
-      const tot = roundTot(t.players.reduce((s, x) => s + nextSalary(x), 0));
+      const ready = !S.fa.loading;
+      const tot = ready ? roundTot(t.players.reduce((s, x) => s + nextSalary(x), 0)) : 0;
       const left = capForYear(2) - tot;
+      const capHtml = ready ? `<span class="used">${money(tot,0)}</span>/${money(left,0)}` : "…";
       return `<button class="card ${t.id===S.gmId?"on":""}" data-act="open-tut" data-id="${t.id}">
-        <div class="row"><div class="tname">${esc(t.name)}</div><div class="spent"><span class="used">${money(tot,0)}</span>/${money(left,0)}</div></div>
+        <div class="row"><div class="tname">${esc(t.name)}</div><div class="spent">${capHtml}</div></div>
         <div class="muted">harcanan / kalan</div>
         <div class="stars">${t.players.slice().sort(bySal).map(x => `<span>${esc(x.name)}<b>${money(x.fa ? 1 : (x.salary || 0),0)}</b></span>`).join("")}</div>
       </button>`;
@@ -1100,12 +1102,15 @@ function viewTut() {
   const t = teamById(S.teamId);
   const set = keepSet(t.id);
   const kept = t.players.filter(x => set.has(x.id));
+  const ready = !S.fa.loading;
   const raw = kept.reduce((s, x) => s + nextSalary(x), 0);
   const tot = roundTot(raw);
   const cap = capForYear(2);
   const auction = cap - tot;
   const full = set.size === KEEP_N;
   const dropped = t.players.filter(x => !set.has(x.id));
+  const totHtml = ready ? money(tot, 0) : "…";
+  const leftHtml = ready ? money(auction, 0) : "…";
   return `
     <div class="toolbar">
       <select data-act="team">${S.rosters.map(x => `<option value="${x.id}" ${x.id===t.id?"selected":""}>${esc(x.name)}</option>`).join("")}</select>
@@ -1114,8 +1119,8 @@ function viewTut() {
     </div>
     <div class="stats">
       <div class="stat ${set.size===KEEP_N?"ok":"bad"}"><span class="muted">Tutulan</span><b>${set.size}/${KEEP_N}</b></div>
-      <div class="stat ${tot > keepCeiling(2)?"bad":""}"><span class="muted">Tutulan toplam</span><b>${money(tot,0)}</b><div class="hint">En fazla ${money(keepCeiling(2),0)} · kuruşlu ${raw.toFixed(2)}</div></div>
-      <div class="stat ${auction>=AUCTION_MIN?"ok":"bad"}"><span class="muted">Kalan bütçe</span><b>${money(auction,0)}</b><div class="hint">${money(cap,0)} − tutulanlar</div></div>
+      <div class="stat ${ready && tot > keepCeiling(2) ? "bad" : ""}"><span class="muted">Tutulan toplam</span><b>${totHtml}</b><div class="hint">En fazla ${money(keepCeiling(2),0)}${ready ? ` · kuruşlu ${raw.toFixed(2)}` : ""}</div></div>
+      <div class="stat ${ready ? (auction >= AUCTION_MIN ? "ok" : "bad") : ""}"><span class="muted">Kalan bütçe</span><b>${leftHtml}</b><div class="hint">${money(cap,0)} − tutulanlar</div></div>
     </div>
     <div class="plist">${[...t.players].sort(bySal).map(x => {
       const on = set.has(x.id);
