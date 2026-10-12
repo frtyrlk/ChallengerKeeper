@@ -144,6 +144,10 @@
     .board-head, .brow {
       display: grid; grid-template-columns: 1.3fr 1fr 64px 76px; gap: 8px; align-items: center;
     }
+    .board-open .board-head, .board-open .brow, .board-open .board-tot {
+      grid-template-columns: minmax(0,1.4fr) minmax(0,.8fr) 52px 64px 76px;
+    }
+    .board-open .board-head button:last-child { white-space: normal; line-height: 1.15; }
     .board-head button {
       font-family: inherit; font-weight: 800; font-size: 12px; text-align: left;
       background: none; border: 0; color: var(--muted); cursor: pointer; padding: 8px 6px;
@@ -157,6 +161,7 @@
     }
     .brow:hover { border-color: rgba(200,245,66,.45); }
     .brow .tm { color: var(--muted); font-size: 13px; }
+    .c26 { font-variant-numeric: tabular-nums; font-weight: 800; color: var(--lime); text-align: right; }
     .board-tot {
       display: grid; grid-template-columns: 1.3fr 1fr 64px 76px; gap: 8px; align-items: center;
       padding: 10px 12px; margin: 8px 0 12px; font-weight: 800; font-size: 14px;
@@ -386,7 +391,7 @@ const KEEP_N = 9;
 const AUCTION_MIN = 4;
 const RULES = "Geçen sezonun açık artırmasında ödenen fiyat, oyuncunun bu sezonki maaşının baz noktasıdır. Aynı takımda tutulursa bu sezon ×1,08, sezon içi takasla gelip tutulursa ×1,05 ile çarpılır. 9 oyuncu tutmak zorunludur. Açık artırmada 4 oyuncu seçileceği için en az $4 ile bu sezonun draftına girilmelidir. Bu da aslında pratikte $206 bir cap demektir. Geçen sezon FA’dan alınan oyuncu o yıl $1’dı; yeni sezona $1,08 ile girmiyor. Performansı NBA ödül baremi olan 65 maça çekilir, ligdeki sırası bulunur, o sıraya açık artırma fiyatı biçilir. FA maaşı bu fiyatın tamamı değil: $1’ın üstünün yüzde 30’u, en fazla $15. Kuruşlar yuvarlanmaz. Takas değerleri yeni sezon başlayana kadar $1'dır.";
 const TEAMS = [
-  { id: "godbrother", name: "Kingodisco", color: "#c8f542", players: [
+  { id: "godbrother", name: "Brick Layer", color: "#c8f542", players: [
     p("Victor Wembanyama","SAS","C",91), p("Josh Giddey","CHI","G",32), tr("Donovan Clingan","POR","C",11),
     p("LeBron James","PHI","F",25), p("Jaren Jackson Jr.","UTA","F,C",26), p("Jaden McDaniels","MIN","F",2),
     p("Norman Powell","CHI","G,F",3), p("Jalen Suggs","ORL","G",1),
@@ -402,7 +407,7 @@ const TEAMS = [
     fa("Jakob Poeltl","TOR","C"), fa("Robert Williams III","POR","C"), fa("Herbert Jones","NOP","G,F"),
     fa("Mitchell Robinson","BOS","C")
   ]},
-  { id: "mamba", name: "Mamba Academy", color: "#a78bfa", players: [
+  { id: "mamba", name: "London Lions", color: "#a78bfa", players: [
     p("Kevin Durant","HOU","G,F",30), p("LaMelo Ball","MIN","G",22), p("Trae Young","WAS","G",46),
     fa("Kon Knueppel","CHA","G,F"), p("Brandon Miller","CHA","F",12), p("Darius Garland","LAC","G",17),
     p("Zion Williamson","NOP","F,C",22), p("Ja Morant","POR","G",12),
@@ -455,7 +460,7 @@ const TEAMS = [
     fa("Duncan Robinson","DET","G,F"), fa("Dylan Cardwell","SAC","F,C"), fa("Kyle Kuzma","MIL","F"),
     fa("Sam Hauser","BOS","F"), fa("Kris Dunn","LAC","G")
   ]},
-  { id: "kayyim", name: "Kayyım", color: "#38bdf8", players: [
+  { id: "kayyim", name: "Los Pollos Hermanos", color: "#38bdf8", players: [
     p("Giannis Antetokounmpo","MIA","F,C",71), p("Alperen Sengun","HOU","F,C",36), p("Dyson Daniels","ATL","G,F",39),
     p("De'Aaron Fox","SAS","G",28), p("Ausar Thompson","DET","G,F",10), fa("Josh Hart","NYK","G,F",1),
     p("Nic Claxton","CHI","C",1), p("Isaiah Hartenstein","OKC","C",9),
@@ -526,6 +531,29 @@ for (const t of TEAMS) {
   t.players = stay;
 }
 
+const DRAFT_PAY = {};
+const DRAFT = [
+  ["mamba","Anthony Davis","WAS","F,C",31],["mamba","Derrick White","BOS","G",41],["mamba","Zion Williamson","NOP","F,C",6],["mamba","Damian Lillard","POR","G",17],
+  ["kayyim","Shai Gilgeous-Alexander","OKC","G",89],["kayyim","Domantas Sabonis","SAC","F,C",24],["kayyim","Rudy Gobert","MIN","C",13],["kayyim","Ja Morant","POR","G",4],
+  ["mumessil","Anthony Edwards","MIN","G",59],["mumessil","Matas Buzelis","CHI","F",27],["mumessil","Jalen Williams","OKC","F",31],["mumessil","Davion Mitchell","MIA","G",8],
+  ["bully","Evan Mobley","CLE","F,C",37],["bully","Trae Young","WAS","G",30],["bully","Devin Booker","PHX","G",33],["bully","Dyson Daniels","ATL","G,F",26],
+  ["fedayn","Giannis Antetokounmpo","MIA","F,C",71],["fedayn","Darryn Peterson","UTA","G",6],["fedayn","Kristaps Porzingis","GSW","C",1],["fedayn","Fred VanVleet","HOU","G",1],
+  ["pawnee","Josh Giddey","CHI","G",31],["pawnee","Julius Randle","BKN","F",18],["pawnee","De'Aaron Fox","SAS","G",10],["pawnee","Caleb Wilson","CHI","F",25],
+  ["obi","Cameron Boozer","MEM","F",23],["obi","Aaron Gordon","DEN","F,C",2],["obi","Devin Vassell","SAS","G,F",1],["obi","Jakob Poeltl","TOR","C",1],
+  ["tacsiz","Stephen Curry","GSW","G",34],["tacsiz","Toumani Camara","POR","F",9],["tacsiz","Sandro Mamukelashvili","LAL","F,C",1],["tacsiz","Khaman Maluach","PHX","C",1],
+  ["godbrother","Amen Thompson","HOU","G",41],["godbrother","Egor Dëmin","BKN","G",7],["godbrother","CJ McCollum","ATL","G",6],["godbrother","Jalen Green","PHX","G,F",1],
+  ["harakiri","LeBron James","PHI","F",20],["harakiri","Tari Eason","HOU","G,F",1],["harakiri","John Collins","DET","F,C",3],["harakiri","Zach LaVine","SAC","G,F",14],
+  ["doomed","Paolo Banchero","ORL","F",29],["doomed","Cedric Coward","MEM","G,F",19],["doomed","Darius Acuff Jr.","SAC","G",9],["doomed","AJ Dybantsa","WAS","F",24],
+  ["raul","Myles Turner","MIL","C",10],["raul","Yaxel Lendeborg","GSW","F",15],["raul","Jabari Smith Jr.","HOU","F,C",15],["raul","Kevin Porter Jr.","MIL","G",1]
+];
+for (const [tid, name, nba, pos, salary] of DRAFT) {
+  DRAFT_PAY[foldName(name)] = salary;
+  const team = TEAMS.find(t => t.id === tid);
+  const hit = POOL.find(x => foldName(x.p.name) === foldName(name));
+  const base = hit ? hit.p : { id: name, name, nba, pos };
+  team.players.push({ ...base, salary, viaTrade: false, fa: false, draft: true });
+}
+
 function cloneTeams() {
   return TEAMS.map(t => ({ ...t, players: t.players.map(x => ({ ...x })) }));
 }
@@ -537,7 +565,10 @@ function capForYear(year) {
 }
 function keepCeiling(year) { return capForYear(year) - AUCTION_MIN; }
 
+function contract26(name) { return DRAFT_PAY[foldName(name)] || 0; }
+
 function nextSalary(pl) {
+  if (pl.draft) return pl.salary || 0;
   if (pl.fa) return (S.faPay && S.faPay[pl.id]) || 0;
   if (!hasSal(pl)) return 0;
   return pl.salary * (pl.viaTrade ? 1.05 : 1.08);
@@ -594,7 +625,7 @@ const S = {
     const raw = v6 || prev;
     if (!raw) return;
     const d = JSON.parse(raw);
-    if (v6 && d.keepsRev === 2) {
+    if (v6 && d.keepsRev === 3) {
       if (d.rosters) S.rosters = d.rosters;
       if (d.keepers) S.keepers = d.keepers;
     }
@@ -603,7 +634,7 @@ const S = {
 })();
 
 function save() {
-  localStorage.setItem("challenger-keeper-v6", JSON.stringify({ rosters: S.rosters, keepers: S.keepers, gmId: S.gmId, keepsRev: 2 }));
+  localStorage.setItem("challenger-keeper-v6", JSON.stringify({ rosters: S.rosters, keepers: S.keepers, gmId: S.gmId, keepsRev: 3 }));
 }
 
 function keepSet(tid) {
@@ -1046,6 +1077,7 @@ function boardList() {
     if (k === "name") c = a.p.name.localeCompare(b.p.name, "tr");
     else if (k === "team") c = a.t.name.localeCompare(b.t.name, "tr");
     else if (k === "sal") c = (a.p.fa ? 1 : (a.p.salary || 0)) - (b.p.fa ? 1 : (b.p.salary || 0));
+    else if (k === "c26") c = contract26(a.p.name) - contract26(b.p.name);
     else c = (nextSalary(a.p) || -1) - (nextSalary(b.p) || -1);
     return c * dir;
   });
@@ -1054,17 +1086,19 @@ function boardList() {
 
 function boardHtml() {
   const rows = boardList();
+  const open = S.board.pool === "open";
   const list = rows.length
-    ? rows.map(({ t, p }) =>
-      `<button class="brow" data-act="find" data-tid="${esc(t.id)}" data-pid="${esc(p.id)}"><span>${esc(p.name)}${p.fa ? ' <span class="tag fa">FA</span>' : ""}</span><span class="tm">${esc(t.name)}</span><span class="sal">${money(p.fa ? 1 : (p.salary || 0), 0)}</span><span class="next">${(n => n ? (p.fa ? usd2(n) : money(n)) : "—")(nextSalary(p))}</span></button>`
-    ).join("")
+    ? rows.map(({ t, p }) => {
+      const c26 = contract26(p.name);
+      return `<button class="brow" data-act="find" data-tid="${esc(t.id)}" data-pid="${esc(p.id)}"><span>${esc(p.name)}${p.fa ? ' <span class="tag fa">FA</span>' : ""}</span><span class="tm">${esc(t.name)}</span><span class="sal">${money(p.fa ? 1 : (p.salary || 0), 0)}</span><span class="next">${(n => n ? (p.fa ? usd2(n) : money(n)) : "—")(nextSalary(p))}</span>${open ? `<span class="c26">${c26 ? money(c26, 0) : "—"}</span>` : ""}</button>`;
+    }).join("")
     : `<div class="empty muted">Yok</div>`;
   if (!S.board.team) return list;
-  const raw = rows.reduce((s, { p }) => s + (S.board.pool === "open" ? tradeSal(p) : nextSalary(p)), 0);
+  const raw = rows.reduce((s, { p }) => s + (open ? tradeSal(p) : nextSalary(p)), 0);
   const tot = money(roundTot(raw), 0);
-  return list + (S.board.pool === "open"
-    ? `<div class="board-tot"><span>Toplam</span><span></span><span class="sal">${tot}</span><span></span></div>`
-    : `<div class="board-tot"><span>Toplam</span><span></span><span></span><span class="next">${tot}</span></div>`);
+  const ctot = money(roundTot(rows.reduce((s, { p }) => s + contract26(p.name), 0)), 0);
+  if (open) return list + `<div class="board-tot"><span>Toplam</span><span></span><span class="sal">${tot}</span><span></span><span class="c26">${ctot}</span></div>`;
+  return list + `<div class="board-tot"><span>Toplam</span><span></span><span></span><span class="next">${tot}</span></div>`;
 }
 
 function drawBoard() {
@@ -1089,13 +1123,16 @@ function viewOyuncu() {
       <input class="sal-f" data-act="board-min" inputmode="numeric" value="${esc(b.min)}" placeholder="Min" />
       <input class="sal-f" data-act="board-max" inputmode="numeric" value="${esc(b.max)}" placeholder="Max" />
     </div>
+    <div class="${open?"board-open":""}">
     <div class="board-head">
       <button data-act="board-sort" data-k="name" class="${b.sort==="name"?"on":""}">Oyuncu${boardArrow("name")}</button>
       <button data-act="board-sort" data-k="team" class="${b.sort==="team"?"on":""}">Takım${boardArrow("team")}</button>
       <button data-act="board-sort" data-k="sal" class="${b.sort==="sal"?"on":""}">25/26${boardArrow("sal")}</button>
       <button data-act="board-sort" data-k="next" class="${b.sort==="next"?"on":""}">26/27${boardArrow("next")}</button>
+      ${open ? `<button data-act="board-sort" data-k="c26" class="${b.sort==="c26"?"on":""}">26/27 kontratları${boardArrow("c26")}</button>` : ""}
     </div>
-    <div id="board-list">${boardHtml()}</div>`;
+    <div id="board-list">${boardHtml()}</div>
+    </div>`;
 }
 
 function viewTut() {
@@ -1325,6 +1362,7 @@ document.addEventListener("click", e => {
   else if (act === "board-pool") {
     S.board.pool = t.dataset.pool || "";
     if (S.board.pool === "open") { S.board.sort = "sal"; S.board.dir = -1; }
+    else if (S.board.sort === "c26") { S.board.sort = "next"; S.board.dir = -1; }
   }
   else if (act === "copy-trade") { const s = tradeLine(); if (s) copyText(s); return; }
   else if (act === "copy-keep") { const s = keepLine(); if (s) copyText(s); return; }
@@ -1399,7 +1437,16 @@ function selfCheck() {
     [{ id: "c", name: "Cade", salary: 54 }]
   );
   const addOnly = tips.length && tips.every(t => t.label.includes("ekle") && !t.label.includes("çıkar")) && tips.some(t => t.addB.includes("t"));
-  if (!(ok120 && no130 && r1 && r2 && cap && wembyKeep && faSkip && keepFa && keepMax && addOnly)) throw new Error("keeper math failed");
+  const lions = TEAMS.find(t => t.id === "mamba");
+  const ad = lions.players.find(p => p.name === "Anthony Davis");
+  const draftOk = ad && ad.draft && nextSalary(ad) === 31 && lions.name === "London Lions"
+    && TEAMS.find(t => t.id === "kayyim").name === "Los Pollos Hermanos"
+    && TEAMS.find(t => t.id === "godbrother").name === "Brick Layer"
+    && DRAFT.length === 48
+    && TEAMS.every(t => t.players.filter(p => p.draft).length === 4)
+    && contract26("Shai Gilgeous-Alexander") === 89
+    && contract26("Victor Wembanyama") === 0;
+  if (!(ok120 && no130 && r1 && r2 && cap && wembyKeep && faSkip && keepFa && keepMax && addOnly && draftOk)) throw new Error("keeper math failed");
 }
 selfCheck();
 loadEngine();
