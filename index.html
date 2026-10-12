@@ -389,7 +389,7 @@
 const YEAR1_CAP = 200;
 const KEEP_N = 9;
 const AUCTION_MIN = 4;
-const RULES = "Geçen sezonun açık artırmasında ödenen fiyat, oyuncunun bu sezonki maaşının baz noktasıdır. Aynı takımda tutulursa bu sezon ×1,08, sezon içi takasla gelip tutulursa ×1,05 ile çarpılır. 9 oyuncu tutmak zorunludur. Açık artırmada 4 oyuncu seçileceği için en az $4 ile bu sezonun draftına girilmelidir. Bu da aslında pratikte $206 bir cap demektir. Geçen sezon FA’dan alınan oyuncu o yıl $1’dı; yeni sezona $1,08 ile girmiyor. Performansı NBA ödül baremi olan 65 maça çekilir, ligdeki sırası bulunur, o sıraya açık artırma fiyatı biçilir. FA maaşı bu fiyatın tamamı değil: $1’ın üstünün yüzde 30’u, en fazla $15. Kuruşlar yuvarlanmaz. Takas değerleri yeni sezon başlayana kadar $1'dır.";
+const RULES = "Geçen sezonun açık artırmasında ödenen fiyat, oyuncunun bu sezonki maaşının baz noktasıdır. Aynı takımda tutulursa bu sezon ×1,08, sezon içi takasla gelip tutulursa ×1,05 ile çarpılır. 9 oyuncu tutmak zorunludur. Açık artırmada 4 oyuncu seçileceği için en az $4 ile bu sezonun draftına girilmelidir. Bu da aslında pratikte $206 bir cap demektir. Geçen sezon FA’dan alınan oyuncu o yıl $1’dı; yeni sezona $1,08 ile girmiyor. Performansı NBA ödül baremi olan 65 maça çekilir, ligdeki sırası bulunur, o sıraya açık artırma fiyatı biçilir. FA maaşı bu fiyatın tamamı değil: $1’ın üstünün yüzde 30’u, en fazla $15. Kuruşlar yuvarlanmaz. Takas, oyuncunun 26/27 maaşıyla yapılır.";
 const TEAMS = [
   { id: "godbrother", name: "Brick Layer", color: "#c8f542", players: [
     p("Victor Wembanyama","SAS","C",91), p("Josh Giddey","CHI","G",32), tr("Donovan Clingan","POR","C",11),
@@ -597,12 +597,10 @@ function overlaps(a, b) {
 function tradeSal(pl) { return pl.fa ? 1 : (pl.salary || 0); }
 
 function pkgTotal(players) {
-  return roundTot(players.reduce((s, x) => s + tradeSal(x), 0));
+  return roundTot(players.reduce((s, x) => s + nextSalary(x), 0));
 }
 
 function teamById(id) { return S.rosters.find(t => t.id === id); }
-
-function spent(t) { return t.players.filter(hasSal).reduce((s, x) => s + x.salary, 0); }
 
 const S = {
   view: "lig",
@@ -1185,13 +1183,8 @@ function viewTut() {
 }
 
 function afterSpent(team, give, take) {
-  return spent(team)
-    - give.reduce((s, x) => s + (hasSal(x) ? x.salary : 0), 0)
-    + take.reduce((s, x) => s + tradeSal(x), 0);
-}
-
-function inKeep(take) {
-  return roundTot(take.filter(x => hasSal(x) && !x.fa).reduce((s, x) => s + x.salary * 1.05, 0));
+  const sum = list => list.reduce((s, x) => s + nextSalary(x), 0);
+  return sum(team.players) - sum(give) + sum(take);
 }
 
 function viewTakas() {
@@ -1208,11 +1201,10 @@ function viewTakas() {
   const cb = b.players.filter(x => S.coreB.has(x.id));
   const coreGap = ca.length && cb.length && !tradeOk(ca, cb);
   const after = empty ? "" : `<div class="after">
-      Bu sezon ${esc(a.name)} ${money(spent(a),0)} → ${money(afterSpent(a, pa, pb),0)} · ${esc(b.name)} ${money(spent(b),0)} → ${money(afterSpent(b, pb, pa),0)}
-      <div class="hint">Gelenler tutulursa ${esc(a.name)} ${money(inKeep(pb),0)} · ${esc(b.name)} ${money(inKeep(pa),0)}</div>
+      Bu sezon ${esc(a.name)} ${money(roundTot(a.players.reduce((s, x) => s + nextSalary(x), 0)),0)} → ${money(roundTot(afterSpent(a, pa, pb)),0)} · ${esc(b.name)} ${money(roundTot(b.players.reduce((s, x) => s + nextSalary(x), 0)),0)} → ${money(roundTot(afterSpent(b, pb, pa)),0)}
     </div>`;
   return `
-    <p class="sub">Paket toplamları toplanır, sonra yuvarlanır. ±%10 bantları kesişirse takas uygun. FA takasta $1.</p>
+    <p class="sub">Paket toplamları 26/27 maaşlarından toplanır, sonra yuvarlanır. ±%10 bantları kesişirse takas uygun.</p>
     <div class="cols">
       ${side(a, "A")}
       ${side(b, "B")}
@@ -1237,12 +1229,12 @@ function side(team, which) {
     <select data-act="trade-team" data-which="${which}">${S.rosters.map(x =>
       `<option value="${x.id}" ${x.id===team.id?"selected":""} ${x.id===other?"disabled":""}>${esc(x.name)}</option>`
     ).join("")}</select>
-    <div class="plist">${[...team.players].sort(bySal).map(x => {
+    <div class="plist">${[...team.players].sort((a, b) => nextSalary(b) - nextSalary(a)).map(x => {
       const on = picks.has(x.id);
       return `<button class="prow ${on?"on":""}" data-act="pick" data-which="${which}" data-id="${esc(x.id)}">
         <div class="ck">${on?"✓":""}</div>
-        <div><div class="nm">${esc(x.name)} ${x.fa ? '<span class="tag fa">FA · $1</span>' : ""}</div><div class="muted">${x.nba} · ${x.pos}</div></div>
-        <div class="sal">${money(tradeSal(x),0)}</div>
+        <div><div class="nm">${esc(x.name)} ${x.fa ? '<span class="tag fa">FA</span>' : ""}</div><div class="muted">${x.nba} · ${x.pos}</div></div>
+        <div class="sal">${playMoney(x)}</div>
         <div></div>
       </button>`;
     }).join("")}</div>
@@ -1268,10 +1260,10 @@ function tradeTipsList(a, pa, b, pb) {
     seen.add(key);
     tips.push({ nAdd, gap: Math.abs(pkgTotal(na) - pkgTotal(nb)), label: `${label} → ${money(pkgTotal(na),0)} / ${money(pkgTotal(nb),0)}`, addA: extrasA.map(p => p.id), addB: extrasB.map(p => p.id) });
   };
-  for (const p of poolB) add("b+" + p.id, 1, `${b.name}: ${p.name} ekle (${money(tradeSal(p),0)})`, [], [p]);
-  for (const p of poolA) add("a+" + p.id, 1, `${a.name}: ${p.name} ekle (${money(tradeSal(p),0)})`, [p], []);
+  for (const p of poolB) add("b+" + p.id, 1, `${b.name}: ${p.name} ekle (${playMoney(p)})`, [], [p]);
+  for (const p of poolA) add("a+" + p.id, 1, `${a.name}: ${p.name} ekle (${playMoney(p)})`, [p], []);
   for (const p of poolA) for (const q of poolB)
-    add("ab+" + p.id + q.id, 2, `${a.name}: ${p.name} ekle (${money(tradeSal(p),0)}) · ${b.name}: ${q.name} ekle (${money(tradeSal(q),0)})`, [p], [q]);
+    add("ab+" + p.id + q.id, 2, `${a.name}: ${p.name} ekle (${playMoney(p)}) · ${b.name}: ${q.name} ekle (${playMoney(q)})`, [p], [q]);
   // ponytail: 2-add O(n²) on ~13-player rosters; 3-add only if 1–2 never overlap
   for (let i = 0; i < poolB.length; i++) for (let j = i + 1; j < poolB.length; j++)
     add("bb+" + poolB[i].id + poolB[j].id, 2, `${b.name}: ${poolB[i].name} ve ${poolB[j].name} ekle`, [], [poolB[i], poolB[j]]);
@@ -1434,7 +1426,7 @@ function selfCheck() {
   const wembyKeep = roundTot(91 * 1.08) === 98;
   const kdKeep = money(nextSalary({ salary: 30, fa: false, viaTrade: false })) === "$32.40";
   const lukaKeep = money(nextSalary({ salary: 73, fa: false, viaTrade: true })) === "$76.65";
-  const faSkip = pkgTotal([{ salary: 50, fa: false }, { salary: null, fa: true }]) === 51;
+  const faSkip = pkgTotal([{ salary: 50, fa: false }, { salary: null, fa: true }]) === 54;
   const keepFa = nextSalary({ fa: true, salary: 1 }) === 0;
   const keepMax = keepCeiling(2) === 206;
   const tips = tradeTipsList(
