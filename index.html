@@ -576,6 +576,11 @@ function nextSalary(pl) {
 
 function roundTot(n) { return Math.round(n); }
 
+function playMoney(pl) {
+  const n = nextSalary(pl);
+  return n ? money(n) : "—";
+}
+
 function money(n, d = 2) {
   const s = d === 0 ? String(Math.round(n)) : Number(n).toFixed(d);
   return "$" + s.replace(/\.00$/, "");
@@ -700,11 +705,11 @@ function drawHits() {
   const rows = [];
   for (const t of S.rosters) for (const p of t.players)
     if (p.name.toLocaleLowerCase("tr").includes(q)) rows.push({ t, p });
-  rows.sort((a, b) => (b.p.salary || 0) - (a.p.salary || 0));
+  rows.sort((a, b) => nextSalary(b.p) - nextSalary(a.p));
   box.hidden = false;
   box.innerHTML = rows.length
     ? rows.slice(0, 12).map(({ t, p }) =>
-      `<button data-act="find" data-tid="${esc(t.id)}" data-pid="${esc(p.id)}"><span>${esc(p.name)}</span><span class="muted">${esc(t.name)} · ${p.fa ? "FA · $1" : money(p.salary, 0)}</span></button>`
+      `<button data-act="find" data-tid="${esc(t.id)}" data-pid="${esc(p.id)}"><span>${esc(p.name)}</span><span class="muted">${esc(t.name)} · ${p.fa ? "FA · " : ""}${playMoney(p)}</span></button>`
     ).join("")
     : `<div class="empty muted">Yok</div>`;
 }
@@ -1047,7 +1052,7 @@ function viewLig() {
       return `<button class="card ${t.id===S.gmId?"on":""}" data-act="open-tut" data-id="${t.id}">
         <div class="row"><div class="tname">${esc(t.name)}</div><div class="spent">${capHtml}</div></div>
         <div class="muted">harcanan / kalan</div>
-        <div class="stars">${t.players.slice().sort(bySal).map(x => `<span>${esc(x.name)}<b>${money(x.fa ? 1 : (x.salary || 0),0)}</b></span>`).join("")}</div>
+        <div class="stars">${t.players.slice().sort((a, b) => nextSalary(b) - nextSalary(a)).map(x => `<span>${esc(x.name)}<b>${x.fa && !ready ? "…" : playMoney(x)}</b></span>`).join("")}</div>
       </button>`;
     }).join("")}</div>`;
 }
@@ -1427,6 +1432,8 @@ function selfCheck() {
   const r2 = Math.round(18.5) === 19;
   const cap = capForYear(2) === 210 && capForYear(3) === 221;
   const wembyKeep = roundTot(91 * 1.08) === 98;
+  const kdKeep = money(nextSalary({ salary: 30, fa: false, viaTrade: false })) === "$32.40";
+  const lukaKeep = money(nextSalary({ salary: 73, fa: false, viaTrade: true })) === "$76.65";
   const faSkip = pkgTotal([{ salary: 50, fa: false }, { salary: null, fa: true }]) === 51;
   const keepFa = nextSalary({ fa: true, salary: 1 }) === 0;
   const keepMax = keepCeiling(2) === 206;
@@ -1446,7 +1453,7 @@ function selfCheck() {
     && TEAMS.every(t => t.players.filter(p => p.draft).length === 4)
     && contract26("Shai Gilgeous-Alexander") === 89
     && contract26("Victor Wembanyama") === 0;
-  if (!(ok120 && no130 && r1 && r2 && cap && wembyKeep && faSkip && keepFa && keepMax && addOnly && draftOk)) throw new Error("keeper math failed");
+  if (!(ok120 && no130 && r1 && r2 && cap && wembyKeep && kdKeep && lukaKeep && faSkip && keepFa && keepMax && addOnly && draftOk)) throw new Error("keeper math failed");
 }
 selfCheck();
 loadEngine();
